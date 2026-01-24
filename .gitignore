@@ -1,0 +1,18 @@
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# Maven
+target/
+**/target/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env/local configs (если будут)
+.env
