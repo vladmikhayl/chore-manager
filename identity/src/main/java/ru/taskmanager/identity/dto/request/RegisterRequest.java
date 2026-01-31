@@ -2,9 +2,15 @@ package ru.taskmanager.identity.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class RegisterRequest {
     @NotBlank(message = "Логин не может быть пустым")
     @Size(min = 3, max = 30, message = "Логин должен содержать от 3 до 30 символов")

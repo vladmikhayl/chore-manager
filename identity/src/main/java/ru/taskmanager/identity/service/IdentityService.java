@@ -27,6 +27,7 @@ public class IdentityService {
                 .passwordHash(passwordEncoder.encode(password))
                 .timezone("Europe/Moscow")
                 .dailyReminderEnabled(false)
+                .dailyReminderTime(null)
                 .build();
 
         userRepository.save(user);
