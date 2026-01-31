@@ -28,7 +28,9 @@ public class IdentityController {
     }
 
     @PostMapping("/auth/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(
+            @RequestBody LoginRequest request
+    ) {
         return ResponseEntity.ok(identityService.login(request));
     }
 }
