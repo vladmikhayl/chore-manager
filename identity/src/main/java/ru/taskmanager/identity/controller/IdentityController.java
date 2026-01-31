@@ -8,7 +8,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import ru.taskmanager.identity.dto.request.LoginRequest;
 import ru.taskmanager.identity.dto.request.RegisterRequest;
+import ru.taskmanager.identity.dto.response.LoginResponse;
 import ru.taskmanager.identity.service.IdentityService;
 
 @RestController
@@ -23,5 +25,10 @@ public class IdentityController {
     ) {
         identityService.register(registerRequest);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PostMapping("/auth/login")
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(identityService.login(request));
     }
 }

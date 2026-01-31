@@ -15,3 +15,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+security:
+  jwt:
+    secret: "n82dHJjidj3j8DH83dhkjmaO83NOUh_d772GHDS1D3"
+    ttl: 3600 # seconds
