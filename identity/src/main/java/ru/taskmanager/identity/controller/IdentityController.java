@@ -4,14 +4,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import ru.taskmanager.identity.dto.request.LoginRequest;
 import ru.taskmanager.identity.dto.request.RegisterRequest;
 import ru.taskmanager.identity.dto.response.LoginResponse;
+import ru.taskmanager.identity.dto.response.NotificationSettingsResponse;
 import ru.taskmanager.identity.service.IdentityService;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -32,5 +32,13 @@ public class IdentityController {
             @RequestBody LoginRequest request
     ) {
         return ResponseEntity.ok(identityService.login(request));
+    }
+
+    @GetMapping("/me/notification-settings")
+    public ResponseEntity<NotificationSettingsResponse> getNotificationSettings(
+            @RequestHeader("X-User-Id") UUID userId
+    ) {
+        NotificationSettingsResponse response = identityService.getNotificationSettings(userId);
+        return ResponseEntity.ok(response);
     }
 }

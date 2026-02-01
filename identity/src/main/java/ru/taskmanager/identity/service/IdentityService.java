@@ -1,5 +1,6 @@
 package ru.taskmanager.identity.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -8,9 +9,12 @@ import org.springframework.stereotype.Service;
 import ru.taskmanager.identity.dto.request.LoginRequest;
 import ru.taskmanager.identity.dto.request.RegisterRequest;
 import ru.taskmanager.identity.dto.response.LoginResponse;
+import ru.taskmanager.identity.dto.response.NotificationSettingsResponse;
 import ru.taskmanager.identity.entity.User;
 import ru.taskmanager.identity.repository.UserRepository;
 import ru.taskmanager.identity.security.JwtService;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -48,5 +52,16 @@ public class IdentityService {
                 .build();
 
         userRepository.save(user);
+    }
+
+    public NotificationSettingsResponse getNotificationSettings(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Пользователь не найден"));
+
+        return new NotificationSettingsResponse(
+                user.getTimezone(),
+                user.isDailyReminderEnabled(),
+                user.getDailyReminderTime()
+        );
     }
 }
