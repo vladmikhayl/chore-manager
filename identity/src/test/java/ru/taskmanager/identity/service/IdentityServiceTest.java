@@ -1,5 +1,6 @@
 package ru.taskmanager.identity.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -12,10 +13,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import ru.taskmanager.identity.dto.request.LoginRequest;
 import ru.taskmanager.identity.dto.request.RegisterRequest;
 import ru.taskmanager.identity.dto.response.LoginResponse;
+import ru.taskmanager.identity.dto.response.NotificationSettingsResponse;
 import ru.taskmanager.identity.entity.User;
 import ru.taskmanager.identity.repository.UserRepository;
 import ru.taskmanager.identity.security.JwtService;
 
+import java.time.LocalTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -139,5 +142,38 @@ public class IdentityServiceTest {
         assertThatThrownBy(() -> identityService.login(request))
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessage("Неверный логин или пароль");
+    }
+
+    @Test
+    void getNotificationSettings_success_returnsSettings() {
+        UUID userId = UUID.randomUUID();
+
+        User user = User.builder()
+                .id(userId)
+                .timezone("Europe/Moscow")
+                .dailyReminderEnabled(true)
+                .dailyReminderTime(LocalTime.of(9, 30))
+                .build();
+
+        when(userRepository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        NotificationSettingsResponse response = identityService.getNotificationSettings(userId);
+
+        assertThat(response.getTimezone()).isEqualTo("Europe/Moscow");
+        assertThat(response.isDailyReminderEnabled()).isTrue();
+        assertThat(response.getDailyReminderTime()).isEqualTo(LocalTime.of(9, 30));
+    }
+
+    @Test
+    void getNotificationSettings_userNotFound_throwsEntityNotFound() {
+        UUID userId = UUID.randomUUID();
+
+        when(userRepository.findById(userId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> identityService.getNotificationSettings(userId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Пользователь не найден");
     }
 }
