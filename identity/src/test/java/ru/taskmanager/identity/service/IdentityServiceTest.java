@@ -11,6 +11,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import ru.taskmanager.identity.dto.request.LoginRequest;
+import ru.taskmanager.identity.dto.request.NotificationSettingsRequest;
 import ru.taskmanager.identity.dto.request.RegisterRequest;
 import ru.taskmanager.identity.dto.response.LoginResponse;
 import ru.taskmanager.identity.dto.response.NotificationSettingsResponse;
@@ -60,7 +61,7 @@ public class IdentityServiceTest {
         assertThat(saved.getPasswordHash()).isEqualTo("HASHED");
         assertThat(saved.getTimezoneOffsetHours()).isEqualTo(3);
         assertThat(saved.isDailyReminderEnabled()).isFalse();
-        assertThat(saved.getDailyReminderTime()).isNull();
+        assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(8, 0));
     }
 
     @Test
@@ -175,5 +176,162 @@ public class IdentityServiceTest {
         assertThatThrownBy(() -> identityService.getNotificationSettings(userId))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Пользователь не найден");
+    }
+
+    @Test
+    void updateNotificationSettings_userNotFound_throwsEntityNotFound() {
+        UUID userId = UUID.randomUUID();
+
+        NotificationSettingsRequest req = NotificationSettingsRequest.builder()
+                .timezoneOffsetHours(5)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> identityService.updateNotificationSettings(userId, req))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Пользователь не найден");
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateNotificationSettings_onlyTimezone_updatesOffsetAndDoesNotTouchOthers() {
+        UUID userId = UUID.randomUUID();
+
+        User user = User.builder()
+                .id(userId)
+                .timezoneOffsetHours(3)
+                .dailyReminderEnabled(false)
+                .dailyReminderTime(LocalTime.of(8, 0))
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        NotificationSettingsRequest req = NotificationSettingsRequest.builder()
+                .timezoneOffsetHours(-10)
+                .build();
+
+        identityService.updateNotificationSettings(userId, req);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        User saved = captor.getValue();
+
+        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(-10);
+        assertThat(saved.isDailyReminderEnabled()).isFalse();
+        assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(8, 0));
+    }
+
+    @Test
+    void updateNotificationSettings_onlyTime_updatesTimeAndDoesNotTouchOthers() {
+        UUID userId = UUID.randomUUID();
+
+        User user = User.builder()
+                .id(userId)
+                .timezoneOffsetHours(3)
+                .dailyReminderEnabled(true)
+                .dailyReminderTime(LocalTime.of(8, 0))
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        NotificationSettingsRequest req = NotificationSettingsRequest.builder()
+                .dailyReminderTime(LocalTime.of(10, 0))
+                .build();
+
+        identityService.updateNotificationSettings(userId, req);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        User saved = captor.getValue();
+
+        assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(10, 0));
+        assertThat(saved.isDailyReminderEnabled()).isTrue();
+        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(3);
+    }
+
+    @Test
+    void updateNotificationSettings_onlyEnabled_updatesEnabledAndDoesNotTouchOthers() {
+        UUID userId = UUID.randomUUID();
+
+        User user = User.builder()
+                .id(userId)
+                .timezoneOffsetHours(-5)
+                .dailyReminderEnabled(false)
+                .dailyReminderTime(LocalTime.of(15, 0))
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        NotificationSettingsRequest req = NotificationSettingsRequest.builder()
+                .dailyReminderEnabled(true)
+                .build();
+
+        identityService.updateNotificationSettings(userId, req);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        User saved = captor.getValue();
+
+        assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(15, 0));
+        assertThat(saved.isDailyReminderEnabled()).isTrue();
+        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(-5);
+    }
+
+    @Test
+    void updateNotificationSettings_allFields_updatesAll() {
+        UUID userId = UUID.randomUUID();
+
+        User user = User.builder()
+                .id(userId)
+                .timezoneOffsetHours(3)
+                .dailyReminderEnabled(false)
+                .dailyReminderTime(LocalTime.of(8, 0))
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        NotificationSettingsRequest req = NotificationSettingsRequest.builder()
+                .timezoneOffsetHours(5)
+                .dailyReminderEnabled(true)
+                .dailyReminderTime(LocalTime.of(7, 0))
+                .build();
+
+        identityService.updateNotificationSettings(userId, req);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        User saved = captor.getValue();
+
+        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(5);
+        assertThat(saved.isDailyReminderEnabled()).isTrue();
+        assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(7, 0));
+    }
+
+    @Test
+    void updateNotificationSettings_emptyRequest_doesNotChangeAnything() {
+        UUID userId = UUID.randomUUID();
+
+        User user = User.builder()
+                .id(userId)
+                .timezoneOffsetHours(3)
+                .dailyReminderEnabled(true)
+                .dailyReminderTime(LocalTime.of(8, 0))
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        NotificationSettingsRequest req = NotificationSettingsRequest.builder().build();
+
+        identityService.updateNotificationSettings(userId, req);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        User saved = captor.getValue();
+
+        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(3);
+        assertThat(saved.isDailyReminderEnabled()).isTrue();
+        assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(8, 0));
     }
 }

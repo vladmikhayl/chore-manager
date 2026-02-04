@@ -7,6 +7,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import ru.taskmanager.identity.dto.request.LoginRequest;
+import ru.taskmanager.identity.dto.request.NotificationSettingsRequest;
 import ru.taskmanager.identity.dto.request.RegisterRequest;
 import ru.taskmanager.identity.dto.response.LoginResponse;
 import ru.taskmanager.identity.dto.response.NotificationSettingsResponse;
@@ -14,6 +15,7 @@ import ru.taskmanager.identity.entity.User;
 import ru.taskmanager.identity.repository.UserRepository;
 import ru.taskmanager.identity.security.JwtService;
 
+import java.time.LocalTime;
 import java.util.UUID;
 
 @Service
@@ -36,7 +38,7 @@ public class IdentityService {
                 .passwordHash(passwordEncoder.encode(password))
                 .timezoneOffsetHours(3)
                 .dailyReminderEnabled(false)
-                .dailyReminderTime(null)
+                .dailyReminderTime(LocalTime.of(8, 0))
                 .build();
 
         userRepository.save(user);
@@ -63,5 +65,28 @@ public class IdentityService {
                 user.getDailyReminderTime(),
                 user.getTimezoneOffsetHours()
         );
+    }
+
+    public void updateNotificationSettings(UUID userId, NotificationSettingsRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Пользователь не найден"));
+
+        Integer timezoneOffsetHours = request.getTimezoneOffsetHours();
+        Boolean dailyReminderEnabled = request.getDailyReminderEnabled();
+        LocalTime dailyReminderTime = request.getDailyReminderTime();
+
+        if (timezoneOffsetHours != null) {
+            user.setTimezoneOffsetHours(timezoneOffsetHours);
+        }
+
+        if (dailyReminderTime != null) {
+            user.setDailyReminderTime(dailyReminderTime);
+        }
+
+        if (dailyReminderEnabled != null) {
+            user.setDailyReminderEnabled(dailyReminderEnabled);
+        }
+
+        userRepository.save(user);
     }
 }

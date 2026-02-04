@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.taskmanager.identity.dto.request.LoginRequest;
+import ru.taskmanager.identity.dto.request.NotificationSettingsRequest;
 import ru.taskmanager.identity.dto.request.RegisterRequest;
 import ru.taskmanager.identity.dto.response.LoginResponse;
 import ru.taskmanager.identity.dto.response.NotificationSettingsResponse;
@@ -40,5 +41,14 @@ public class IdentityController {
     ) {
         NotificationSettingsResponse response = identityService.getNotificationSettings(userId);
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/me/notification-settings")
+    public ResponseEntity<Void> updateNotificationSettings(
+            @RequestHeader("X-User-Id") UUID userId,
+            @Valid @RequestBody NotificationSettingsRequest request
+    ) {
+        identityService.updateNotificationSettings(userId, request);
+        return ResponseEntity.status(HttpStatus.OK).build();
     }
 }
