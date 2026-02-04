@@ -58,7 +58,7 @@ public class IdentityServiceTest {
 
         assertThat(saved.getLogin()).isEqualTo("username");
         assertThat(saved.getPasswordHash()).isEqualTo("HASHED");
-        assertThat(saved.getTimezone()).isEqualTo("Europe/Moscow");
+        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(3);
         assertThat(saved.isDailyReminderEnabled()).isFalse();
         assertThat(saved.getDailyReminderTime()).isNull();
     }
@@ -150,9 +150,9 @@ public class IdentityServiceTest {
 
         User user = User.builder()
                 .id(userId)
-                .timezone("Europe/Moscow")
+                .timezoneOffsetHours(-10)
                 .dailyReminderEnabled(true)
-                .dailyReminderTime(LocalTime.of(9, 30))
+                .dailyReminderTime(LocalTime.of(9, 0))
                 .build();
 
         when(userRepository.findById(userId))
@@ -160,9 +160,9 @@ public class IdentityServiceTest {
 
         NotificationSettingsResponse response = identityService.getNotificationSettings(userId);
 
-        assertThat(response.getTimezone()).isEqualTo("Europe/Moscow");
+        assertThat(response.getTimezoneOffsetHours()).isEqualTo(-10);
         assertThat(response.isDailyReminderEnabled()).isTrue();
-        assertThat(response.getDailyReminderTime()).isEqualTo(LocalTime.of(9, 30));
+        assertThat(response.getDailyReminderTime()).isEqualTo(LocalTime.of(9, 0));
     }
 
     @Test

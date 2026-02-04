@@ -24,8 +24,8 @@ public class User {
     @Column(name="password_hash", nullable=false)
     private String passwordHash;
 
-    @Column(nullable = false, length = 50)
-    private String timezone;
+    @Column(name="timezone_offset_hours", nullable=false)
+    private int timezoneOffsetHours;
 
     @Column(name="daily_reminder_enabled", nullable=false)
     private boolean dailyReminderEnabled;

@@ -23,6 +23,25 @@ public class IdentityService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
+    public void register(RegisterRequest registerRequest) {
+        String login = registerRequest.getLogin();
+        String password = registerRequest.getPassword();
+
+        if (userRepository.existsByLogin(login)) {
+            throw new DataIntegrityViolationException("Этот логин уже занят");
+        }
+
+        User user = User.builder()
+                .login(login)
+                .passwordHash(passwordEncoder.encode(password))
+                .timezoneOffsetHours(3)
+                .dailyReminderEnabled(false)
+                .dailyReminderTime(null)
+                .build();
+
+        userRepository.save(user);
+    }
+
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByLogin(request.getLogin())
                 .orElseThrow(() -> new BadCredentialsException("Неверный логин или пароль"));
@@ -35,33 +54,14 @@ public class IdentityService {
         return new LoginResponse(token);
     }
 
-    public void register(RegisterRequest registerRequest) {
-        String login = registerRequest.getLogin();
-        String password = registerRequest.getPassword();
-
-        if (userRepository.existsByLogin(login)) {
-            throw new DataIntegrityViolationException("Этот логин уже занят");
-        }
-
-        User user = User.builder()
-                .login(login)
-                .passwordHash(passwordEncoder.encode(password))
-                .timezone("Europe/Moscow")
-                .dailyReminderEnabled(false)
-                .dailyReminderTime(null)
-                .build();
-
-        userRepository.save(user);
-    }
-
     public NotificationSettingsResponse getNotificationSettings(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Пользователь не найден"));
 
         return new NotificationSettingsResponse(
-                user.getTimezone(),
                 user.isDailyReminderEnabled(),
-                user.getDailyReminderTime()
+                user.getDailyReminderTime(),
+                user.getTimezoneOffsetHours()
         );
     }
 }

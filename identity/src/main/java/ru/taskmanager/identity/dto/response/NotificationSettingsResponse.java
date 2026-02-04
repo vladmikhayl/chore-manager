@@ -8,7 +8,7 @@ import java.time.LocalTime;
 @Data
 @AllArgsConstructor
 public class NotificationSettingsResponse {
-    private String timezone;
     private boolean dailyReminderEnabled;
     private LocalTime dailyReminderTime;
+    private int timezoneOffsetHours;
 }
