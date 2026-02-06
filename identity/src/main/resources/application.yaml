@@ -16,6 +16,10 @@ spring:
       hibernate:
         format_sql: true
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
 security:
   jwt:
     secret: "n82dHJjidj3j8DH83dhkjmaO83NOUh_d772GHDS1D3"

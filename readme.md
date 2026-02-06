@@ -13,3 +13,9 @@
 **Инфраструктура:** Docker
 
 **Тестирование:** JUnit, MockMvc, Testcontainers
+
+## 🚀 Запуск
+
+Для локального запуска нужно сначала поднять окружение командой `docker compose up -d`, и затем запустить Spring-приложение
+
+Все конечные эндпоинты и DTO задокументированы в Swagger: `http://localhost:8080/swagger-ui.html`
