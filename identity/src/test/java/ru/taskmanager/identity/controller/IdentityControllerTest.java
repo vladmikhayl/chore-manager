@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-public class IdentityControllerTests {
+public class IdentityControllerTest {
     private MockMvc mockMvc;
 
     private ObjectMapper objectMapper;
