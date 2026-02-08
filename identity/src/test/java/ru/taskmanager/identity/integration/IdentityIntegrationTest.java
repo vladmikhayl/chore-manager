@@ -1,9 +1,10 @@
 package ru.taskmanager.identity.integration;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -12,7 +13,6 @@ import ru.taskmanager.identity.dto.request.NotificationSettingsRequest;
 import ru.taskmanager.identity.dto.request.RegisterRequest;
 import ru.taskmanager.identity.entity.User;
 import ru.taskmanager.identity.repository.UserRepository;
-import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalTime;
 import java.util.UUID;
@@ -195,7 +195,7 @@ public class IdentityIntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        String token = objectMapper.readTree(response).get("token").stringValue();
+        String token = objectMapper.readTree(response).get("token").asText();
 
         UUID userId = userRepository.findByLogin(login).orElseThrow().getId();
 

@@ -1,5 +1,7 @@
 package ru.taskmanager.identity.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +16,6 @@ import ru.taskmanager.identity.dto.request.NotificationSettingsRequest;
 import ru.taskmanager.identity.dto.request.RegisterRequest;
 import ru.taskmanager.identity.exception.GlobalExceptionHandler;
 import ru.taskmanager.identity.service.IdentityService;
-import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalTime;
 import java.util.UUID;
@@ -44,7 +45,7 @@ public class IdentityControllerTest {
                 .standaloneSetup(identityController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
-        objectMapper = new ObjectMapper();
+        objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());;
     }
 
     @Test
