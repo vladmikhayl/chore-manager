@@ -24,3 +24,10 @@ security:
   jwt:
     secret: "n82dHJjidj3j8DH83dhkjmaO83NOUh_d772GHDS1D3"
     ttl: 3600 # seconds
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    prefer-ip-address: true
