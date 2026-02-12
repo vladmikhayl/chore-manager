@@ -1,11 +1,6 @@
-server:
-  port: 8761
-
+# the rest of the config is taken from config-server
 spring:
   application:
     name: discovery
-
-eureka:
-  client:
-    register-with-eureka: false
-    fetch-registry: false
+  config:
+    import: "optional:configserver:http://localhost:8888"
