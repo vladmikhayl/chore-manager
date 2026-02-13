@@ -1,0 +1,13 @@
+security:
+  jwt:
+    secret: "test_jwt_secret_jd8ed8DH8dhwh3iWEF3F4feef"
+    ttl: 3600 # seconds
+
+eureka:
+  client:
+    enabled: false
+
+spring:
+  cloud:
+    config:
+      enabled: false
