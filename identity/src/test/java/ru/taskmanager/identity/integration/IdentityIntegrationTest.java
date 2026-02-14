@@ -184,25 +184,9 @@ public class IdentityIntegrationTest {
                         .content(objectMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isCreated());
 
-        LoginRequest loginRequest = LoginRequest.builder()
-                .login(login)
-                .password(password)
-                .build();
-
-        String response = mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        String token = objectMapper.readTree(response).get("token").asText();
-
         UUID userId = userRepository.findByLogin(login).orElseThrow().getId();
 
         mockMvc.perform(get("/api/v1/me/notification-settings")
-                        .header("Authorization", "Bearer " + token)
                         .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dailyReminderEnabled").value(false))
@@ -216,14 +200,12 @@ public class IdentityIntegrationTest {
                 .build();
 
         mockMvc.perform(put("/api/v1/me/notification-settings")
-                        .header("Authorization", "Bearer " + token)
                         .header("X-User-Id", userId.toString())
                         .contentType(APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/v1/me/notification-settings")
-                        .header("Authorization", "Bearer " + token)
                         .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dailyReminderEnabled").value(true))

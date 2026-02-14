@@ -1,0 +1,6 @@
+# the rest of the config is taken from config-server
+spring:
+  application:
+    name: gateway
+  config:
+    import: "optional:configserver:http://localhost:8888"
