@@ -44,6 +44,6 @@
 
 Все запросы на бэкенд отправляются на Gateway: `http://localhost:8080/api/v1/...`
 
-Все конечные эндпоинты и DTO задокументированы в Swagger: [`http://localhost:8080/swagger-ui.html`](http://localhost:8761/)
+Все конечные эндпоинты и DTO задокументированы в Swagger: [`http://localhost:8080/swagger-ui.html`](http://localhost:8080/swagger-ui.html)
 
 Просмотреть зарегистрированные микросервисы можно через Eureka: [`http://localhost:8761/`](http://localhost:8761/)
