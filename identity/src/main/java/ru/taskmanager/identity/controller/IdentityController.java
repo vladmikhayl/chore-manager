@@ -1,6 +1,7 @@
 package ru.taskmanager.identity.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -65,7 +66,7 @@ public class IdentityController {
     })
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<NotificationSettingsResponse> getNotificationSettings(
-            @RequestHeader("X-User-Id") UUID userId
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId
     ) {
         NotificationSettingsResponse response = identityService.getNotificationSettings(userId);
         return ResponseEntity.ok(response);
@@ -80,7 +81,7 @@ public class IdentityController {
     })
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Void> updateNotificationSettings(
-            @RequestHeader("X-User-Id") UUID userId,
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
             @Valid @RequestBody NotificationSettingsRequest request
     ) {
         identityService.updateNotificationSettings(userId, request);
