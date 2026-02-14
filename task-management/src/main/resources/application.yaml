@@ -1,0 +1,6 @@
+# the rest of the config is taken from config-server
+spring:
+  application:
+    name: task-management
+  config:
+    import: "optional:configserver:http://localhost:8888"
