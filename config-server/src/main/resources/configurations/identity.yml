@@ -12,7 +12,7 @@ eureka:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:15432/identity
+    url: jdbc:postgresql://localhost:15432/identity_db
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
