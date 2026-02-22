@@ -45,7 +45,8 @@ public class IdentityControllerTest {
                 .standaloneSetup(identityController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
-        objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());;
+
+        objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
     @Test
