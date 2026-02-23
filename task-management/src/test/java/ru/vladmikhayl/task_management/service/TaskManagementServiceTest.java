@@ -1,5 +1,6 @@
 package ru.vladmikhayl.task_management.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -8,14 +9,22 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
+import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
+import ru.vladmikhayl.task_management.entity.ListInvite;
 import ru.vladmikhayl.task_management.entity.ListMember;
 import ru.vladmikhayl.task_management.entity.ListMemberId;
 import ru.vladmikhayl.task_management.entity.TodoList;
+import ru.vladmikhayl.task_management.repository.ListInviteRepository;
 import ru.vladmikhayl.task_management.repository.ListMemberRepository;
 import ru.vladmikhayl.task_management.repository.TodoListRepository;
 
+import java.nio.file.AccessDeniedException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
@@ -28,6 +37,12 @@ public class TaskManagementServiceTest {
 
     @Mock
     private ListMemberRepository listMemberRepository;
+
+    @Mock
+    private ListInviteRepository listInviteRepository;
+
+    @Mock
+    private Clock clock;
 
     @InjectMocks
     private TaskManagementService taskManagementService;
@@ -167,6 +182,190 @@ public class TaskManagementServiceTest {
                 .hasMessage("У вас уже есть список с таким названием");
 
         verify(todoListRepository, never()).save(any());
+        verify(listMemberRepository, never()).save(any());
+    }
+
+    @Test
+    void createInvite_success_saves() throws AccessDeniedException {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+
+        when(todoListRepository.existsById(listId)).thenReturn(true);
+        when(todoListRepository.existsByIdAndOwnerUserId(listId, userId)).thenReturn(true);
+
+        Instant fixedNow = Instant.parse("2026-02-23T12:00:00Z");
+        when(clock.instant()).thenReturn(fixedNow);
+
+        CreateInviteResponse response = taskManagementService.createInvite(userId, listId);
+
+        ArgumentCaptor<ListInvite> inviteCaptor = ArgumentCaptor.forClass(ListInvite.class);
+        verify(listInviteRepository).save(inviteCaptor.capture());
+        ListInvite saved = inviteCaptor.getValue();
+
+        assertThat(saved.getListId()).isEqualTo(listId);
+        assertThat(saved.getCreatedAt()).isEqualTo(fixedNow);
+        assertThat(saved.getExpiresAt()).isEqualTo(fixedNow.plus(1, ChronoUnit.DAYS));
+        assertThat(saved.getToken()).isNotBlank();
+
+        assertThat(response.getToken()).isEqualTo(saved.getToken());
+        assertThat(response.getExpiresAt()).isEqualTo(saved.getExpiresAt());
+    }
+
+    @Test
+    void createInvite_listNotFound_throwsNotFoundAndDoesNotSave() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+
+        when(todoListRepository.existsById(listId)).thenReturn(false);
+
+        assertThatThrownBy(() -> taskManagementService.createInvite(userId, listId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Список дел не найден");
+
+        verify(todoListRepository, never()).existsByIdAndOwnerUserId(any(), any());
+        verifyNoInteractions(listInviteRepository);
+    }
+
+    @Test
+    void createInvite_userNotOwner_throwsForbiddenAndDoesNotSave() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+
+        when(todoListRepository.existsById(listId)).thenReturn(true);
+        when(todoListRepository.existsByIdAndOwnerUserId(listId, userId)).thenReturn(false);
+
+        assertThatThrownBy(() -> taskManagementService.createInvite(userId, listId))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("Только создатель списка может создавать приглашения");
+
+        verifyNoInteractions(listInviteRepository);
+    }
+
+    @Test
+    void acceptInvite_success_saves() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+        String token = "TOKEN";
+
+        Instant now = Instant.parse("2026-02-23T12:00:00Z");
+        when(clock.instant()).thenReturn(now);
+
+        ListInvite invite = ListInvite.builder()
+                .id(UUID.randomUUID())
+                .listId(listId)
+                .token(token)
+                .createdAt(now.minusSeconds(60))
+                .expiresAt(now.plusSeconds(3600))
+                .build();
+
+        when(listInviteRepository.findByToken(token)).thenReturn(Optional.of(invite));
+        when(todoListRepository.existsById(listId)).thenReturn(true);
+        when(listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)).thenReturn(false);
+
+        taskManagementService.acceptInvite(userId, token);
+
+        ArgumentCaptor<ListMember> memberCaptor = ArgumentCaptor.forClass(ListMember.class);
+        verify(listMemberRepository).save(memberCaptor.capture());
+        ListMember saved = memberCaptor.getValue();
+
+        assertThat(saved.getId().getListId()).isEqualTo(listId);
+        assertThat(saved.getId().getUserId()).isEqualTo(userId);
+    }
+
+    @Test
+    void acceptInvite_inviteNotFound_throwsNotFoundAndDoesNotSave() {
+        UUID userId = UUID.randomUUID();
+        String token = "TOKEN";
+
+        when(listInviteRepository.findByToken(token)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> taskManagementService.acceptInvite(userId, token))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Приглашение не найдено");
+
+        verifyNoInteractions(todoListRepository);
+        verifyNoInteractions(listMemberRepository);
+    }
+
+    @Test
+    void acceptInvite_inviteExpired_throwsBadRequestAndDoesNotSave() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+        String token = "TOKEN";
+
+        Instant now = Instant.parse("2026-02-23T12:00:00Z");
+        when(clock.instant()).thenReturn(now);
+
+        ListInvite invite = ListInvite.builder()
+                .id(UUID.randomUUID())
+                .listId(listId)
+                .token(token)
+                .createdAt(now.minusSeconds(3600))
+                .expiresAt(now.minusSeconds(1)) // истёк
+                .build();
+
+        when(listInviteRepository.findByToken(token)).thenReturn(Optional.of(invite));
+
+        assertThatThrownBy(() -> taskManagementService.acceptInvite(userId, token))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Приглашение истекло");
+
+        verifyNoInteractions(todoListRepository);
+        verifyNoInteractions(listMemberRepository);
+    }
+
+    @Test
+    void acceptInvite_listNotFound_throwsNotFoundAndDoesNotSave() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+        String token = "TOKEN";
+
+        Instant now = Instant.parse("2026-02-23T12:00:00Z");
+        when(clock.instant()).thenReturn(now);
+
+        ListInvite invite = ListInvite.builder()
+                .id(UUID.randomUUID())
+                .listId(listId)
+                .token(token)
+                .createdAt(now.minusSeconds(60))
+                .expiresAt(now.plusSeconds(3600))
+                .build();
+
+        when(listInviteRepository.findByToken(token)).thenReturn(Optional.of(invite));
+        when(todoListRepository.existsById(listId)).thenReturn(false);
+
+        assertThatThrownBy(() -> taskManagementService.acceptInvite(userId, token))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Список дел не найден");
+
+        verifyNoInteractions(listMemberRepository);
+    }
+
+    @Test
+    void acceptInvite_userAlreadyMember_throwsConflictAndDoesNotSave() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+        String token = "TOKEN";
+
+        Instant now = Instant.parse("2026-02-23T12:00:00Z");
+        when(clock.instant()).thenReturn(now);
+
+        ListInvite invite = ListInvite.builder()
+                .id(UUID.randomUUID())
+                .listId(listId)
+                .token(token)
+                .createdAt(now.minusSeconds(60))
+                .expiresAt(now.plusSeconds(3600))
+                .build();
+
+        when(listInviteRepository.findByToken(token)).thenReturn(Optional.of(invite));
+        when(todoListRepository.existsById(listId)).thenReturn(true);
+        when(listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)).thenReturn(true);
+
+        assertThatThrownBy(() -> taskManagementService.acceptInvite(userId, token))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessage("Вы уже состоите в этом списке");
+
         verify(listMemberRepository, never()).save(any());
     }
 }

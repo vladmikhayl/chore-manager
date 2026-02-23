@@ -1,17 +1,25 @@
 package ru.vladmikhayl.task_management.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
+import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
+import ru.vladmikhayl.task_management.entity.ListInvite;
 import ru.vladmikhayl.task_management.entity.ListMember;
 import ru.vladmikhayl.task_management.entity.ListMemberId;
 import ru.vladmikhayl.task_management.entity.TodoList;
+import ru.vladmikhayl.task_management.repository.ListInviteRepository;
 import ru.vladmikhayl.task_management.repository.ListMemberRepository;
 import ru.vladmikhayl.task_management.repository.TodoListRepository;
 
+import java.nio.file.AccessDeniedException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +29,9 @@ import java.util.UUID;
 public class TaskManagementService {
     private final TodoListRepository todoListRepository;
     private final ListMemberRepository listMemberRepository;
+    private final ListInviteRepository listInviteRepository;
+
+    private final Clock clock;
 
     public List<TodoListShortResponse> getLists(UUID userId) {
         var listIds = listMemberRepository.findAllById_UserId(userId).stream()
@@ -67,6 +78,65 @@ public class TaskManagementService {
         listMemberRepository.save(
                 ListMember.builder()
                         .id(new ListMemberId(list.getId(), userId))
+                        .build()
+        );
+    }
+
+    @Transactional
+    public CreateInviteResponse createInvite(UUID userId, UUID listId) throws AccessDeniedException {
+
+        if (!todoListRepository.existsById(listId)) {
+            throw new EntityNotFoundException("Список дел не найден");
+        }
+
+        if (!todoListRepository.existsByIdAndOwnerUserId(listId, userId)) {
+            throw new AccessDeniedException("Только создатель списка может создавать приглашения");
+        }
+
+        String token = UUID.randomUUID().toString();
+
+        Instant now = Instant.now(clock);
+        Instant expiresAt = now.plus(1, ChronoUnit.DAYS);
+
+        listInviteRepository.save(
+                ListInvite.builder()
+                        .listId(listId)
+                        .token(token)
+                        .createdAt(now)
+                        .expiresAt(expiresAt)
+                        .build()
+        );
+
+        return CreateInviteResponse.builder()
+                .token(token)
+                .expiresAt(expiresAt)
+                .build();
+    }
+
+    @Transactional
+    public void acceptInvite(UUID userId, String token) {
+        var invite = listInviteRepository.findByToken(token)
+                .orElseThrow(() -> new EntityNotFoundException("Приглашение не найдено"));
+
+        Instant now = Instant.now(clock);
+
+        if (invite.getExpiresAt().isBefore(now)) {
+            throw new IllegalArgumentException("Приглашение истекло");
+        }
+
+        UUID listId = invite.getListId();
+
+        if (!todoListRepository.existsById(listId)) {
+            throw new EntityNotFoundException("Список дел не найден");
+        }
+
+        if (listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
+            throw new DataIntegrityViolationException("Вы уже состоите в этом списке");
+        }
+
+        listMemberRepository.save(
+                ListMember.builder()
+                        .id(new ListMemberId(listId, userId))
                         .build()
         );
     }

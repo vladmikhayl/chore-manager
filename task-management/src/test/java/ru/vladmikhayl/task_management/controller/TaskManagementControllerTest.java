@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.exception.GlobalExceptionHandler;
 import ru.vladmikhayl.task_management.service.TaskManagementService;
@@ -69,6 +70,24 @@ public class TaskManagementControllerTest {
                 .build();
 
         mockMvc.perform(post("/api/v1/lists")
+                        .header("X-User-Id", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors").isArray())
+                .andExpect(jsonPath("$.errors[0]").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        verifyNoInteractions(taskManagementService);
+    }
+
+    @Test
+    void acceptInvite_blankToken_returns400() throws Exception {
+        AcceptInviteRequest req = AcceptInviteRequest.builder()
+                .token("")
+                .build();
+
+        mockMvc.perform(post("/api/v1/invites/accept")
                         .header("X-User-Id", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))

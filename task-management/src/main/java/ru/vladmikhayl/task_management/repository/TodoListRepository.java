@@ -11,4 +11,6 @@ public interface TodoListRepository extends JpaRepository<TodoList, UUID> {
     List<TodoList> findAllByIdIn(Collection<UUID> ids);
 
     boolean existsByOwnerUserIdAndTitle(UUID ownerUserId, String title);
+
+    boolean existsByIdAndOwnerUserId(UUID id, UUID ownerUserId);
 }

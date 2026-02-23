@@ -10,5 +10,7 @@ import java.util.UUID;
 public interface ListMemberRepository extends JpaRepository<ListMember, ListMemberId> {
     int countById_ListId(UUID listId);
 
+    boolean existsById_ListIdAndId_UserId(UUID listId, UUID userId);
+
     List<ListMember> findAllById_UserId(UUID userId);
 }

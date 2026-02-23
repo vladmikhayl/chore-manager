@@ -11,10 +11,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
+import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
 import ru.vladmikhayl.task_management.service.TaskManagementService;
 
+import java.nio.file.AccessDeniedException;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,5 +53,36 @@ public class TaskManagementController {
     ) {
         taskManagementService.createList(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PostMapping("/lists/{listId}/invites")
+    @Operation(summary = "Создать приглашение для вступления в список дел")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Приглашение создано"),
+            @ApiResponse(responseCode = "403", description = "Только создатель списка может создавать приглашения", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Список дел не найден", content = @Content)
+    })
+    public ResponseEntity<CreateInviteResponse> createInvite(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @PathVariable UUID listId
+    ) throws AccessDeniedException {
+        var invite = taskManagementService.createInvite(userId, listId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(invite);
+    }
+
+    @PostMapping("/invites/accept")
+    @Operation(summary = "Принять приглашение в список дел")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Успешно"),
+            @ApiResponse(responseCode = "400", description = "Приглашение истекло, или переданы некорректные параметры или тело", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Приглашение или список не найдены", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Пользователь уже состоит в списке", content = @Content)
+    })
+    public ResponseEntity<Void> acceptInvite(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @Valid @RequestBody AcceptInviteRequest request
+    ) {
+        taskManagementService.acceptInvite(userId, request.getToken());
+        return ResponseEntity.ok().build();
     }
 }
