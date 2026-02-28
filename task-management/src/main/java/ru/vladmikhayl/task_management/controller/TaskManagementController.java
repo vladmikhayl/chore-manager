@@ -66,7 +66,7 @@ public class TaskManagementController {
     public ResponseEntity<CreateInviteResponse> createInvite(
             @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
             @PathVariable UUID listId
-    ) throws AccessDeniedException {
+    ) {
         var invite = taskManagementService.createInvite(userId, listId);
         return ResponseEntity.status(HttpStatus.CREATED).body(invite);
     }
@@ -97,7 +97,7 @@ public class TaskManagementController {
     public ResponseEntity<TodoListDetailsResponse> getListDetails(
             @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
             @PathVariable UUID listId
-    ) throws AccessDeniedException {
+    ) {
         return ResponseEntity.ok(taskManagementService.getListDetails(userId, listId));
     }
 }

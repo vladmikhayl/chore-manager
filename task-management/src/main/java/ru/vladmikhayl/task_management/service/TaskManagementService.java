@@ -4,8 +4,10 @@ import feign.FeignException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListDetailsResponse;
@@ -20,7 +22,6 @@ import ru.vladmikhayl.task_management.repository.ListInviteRepository;
 import ru.vladmikhayl.task_management.repository.ListMemberRepository;
 import ru.vladmikhayl.task_management.repository.TodoListRepository;
 
-import java.nio.file.AccessDeniedException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -90,14 +91,14 @@ public class TaskManagementService {
     }
 
     @Transactional
-    public CreateInviteResponse createInvite(UUID userId, UUID listId) throws AccessDeniedException {
+    public CreateInviteResponse createInvite(UUID userId, UUID listId) {
 
         if (!todoListRepository.existsById(listId)) {
             throw new EntityNotFoundException("Список дел не найден");
         }
 
         if (!todoListRepository.existsByIdAndOwnerUserId(listId, userId)) {
-            throw new AccessDeniedException("Только создатель списка может создавать приглашения");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Только создатель списка может создавать приглашения");
         }
 
         String token = UUID.randomUUID().toString();
@@ -150,12 +151,12 @@ public class TaskManagementService {
     }
 
     @Transactional
-    public TodoListDetailsResponse getListDetails(UUID userId, UUID listId) throws AccessDeniedException {
+    public TodoListDetailsResponse getListDetails(UUID userId, UUID listId) {
         var list = todoListRepository.findById(listId)
                 .orElseThrow(() -> new EntityNotFoundException("Список дел не найден"));
 
         if (!listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
-            throw new AccessDeniedException("Вы не состоите в этом списке дел");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Вы не состоите в этом списке дел");
         }
 
         var members = listMemberRepository.findAllById_ListId(listId).stream()

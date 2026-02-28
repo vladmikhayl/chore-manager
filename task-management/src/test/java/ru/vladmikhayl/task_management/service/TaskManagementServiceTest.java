@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
@@ -22,7 +23,6 @@ import ru.vladmikhayl.task_management.repository.ListMemberRepository;
 import ru.vladmikhayl.task_management.repository.TodoListRepository;
 import ru.vladmikhayl.task_management.dto.response.TodoListMemberResponse;
 
-import java.nio.file.AccessDeniedException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -196,7 +196,7 @@ public class TaskManagementServiceTest {
     }
 
     @Test
-    void createInvite_success_saves() throws AccessDeniedException {
+    void createInvite_success_saves() {
         UUID userId = UUID.randomUUID();
         UUID listId = UUID.randomUUID();
 
@@ -245,8 +245,8 @@ public class TaskManagementServiceTest {
         when(todoListRepository.existsByIdAndOwnerUserId(listId, userId)).thenReturn(false);
 
         assertThatThrownBy(() -> taskManagementService.createInvite(userId, listId))
-                .isInstanceOf(AccessDeniedException.class)
-                .hasMessage("Только создатель списка может создавать приглашения");
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Только создатель списка может создавать приглашения");
 
         verifyNoInteractions(listInviteRepository);
     }
@@ -384,7 +384,7 @@ public class TaskManagementServiceTest {
     }
 
     @Test
-    void getListDetails_success_userIsOwner() throws Exception {
+    void getListDetails_success_userIsOwner() {
         UUID userId = UUID.randomUUID();
         UUID listId = UUID.randomUUID();
 
@@ -426,7 +426,7 @@ public class TaskManagementServiceTest {
     }
 
     @Test
-    void getListDetails_success_userIsMemberButNotOwner() throws Exception {
+    void getListDetails_success_userIsMemberButNotOwner() {
         UUID userId = UUID.randomUUID();
         UUID listId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -481,8 +481,8 @@ public class TaskManagementServiceTest {
         when(listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)).thenReturn(false);
 
         assertThatThrownBy(() -> taskManagementService.getListDetails(userId, listId))
-                .isInstanceOf(AccessDeniedException.class)
-                .hasMessage("Вы не состоите в этом списке дел");
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Вы не состоите в этом списке дел");
     }
 
     @Test
