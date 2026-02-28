@@ -6,26 +6,35 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import ru.vladmikhayl.task_management.FeignClientTestConfig;
 import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.entity.ListInvite;
+import ru.vladmikhayl.task_management.feign.IdentityClient;
 import ru.vladmikhayl.task_management.repository.ListInviteRepository;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.hasItem;
+import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@ActiveProfiles("test")
+@Import(FeignClientTestConfig.class)
 @TestPropertySource(properties = { "spring.config.location=classpath:/application-test.yml" })
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -38,6 +47,9 @@ public class TaskManagementIntegrationTest {
 
     @Autowired
     private ListInviteRepository listInviteRepository;
+
+    @Autowired
+    private IdentityClient identityClient;
 
     @DynamicPropertySource
     static void registerDataSourceProperties(DynamicPropertyRegistry registry) {
@@ -53,6 +65,8 @@ public class TaskManagementIntegrationTest {
     void lists_initiallyEmpty_thenCreate_thenGetReturnsOne() throws Exception {
         UUID userId = UUID.randomUUID();
 
+        when(identityClient.getUserLogin(userId)).thenReturn(ResponseEntity.ok("vlad_k"));
+
         getListsAndExpect200_AndExpectListsSize(userId, 0);
 
         createListAndExpect201(userId, "Домашние дела");
@@ -62,11 +76,24 @@ public class TaskManagementIntegrationTest {
                 .andExpect(jsonPath("$[0].title").value("Домашние дела"))
                 .andExpect(jsonPath("$[0].isOwner").value(true))
                 .andExpect(jsonPath("$[0].membersCount").value(1));
+
+        String listId = getListsAndExpect200_AndGetFirstListId(userId);
+
+        getListDetailsAndExpect200(userId, listId)
+                .andExpect(jsonPath("$.id").value(listId))
+                .andExpect(jsonPath("$.title").value("Домашние дела"))
+                .andExpect(jsonPath("$.ownerUserId").value(userId.toString()))
+                .andExpect(jsonPath("$.isOwner").value(true))
+                .andExpect(jsonPath("$.members.length()").value(1))
+                .andExpect(jsonPath("$.members[0].userId").value(userId.toString()))
+                .andExpect(jsonPath("$.members[0].login").value("vlad_k"));
     }
 
     @Test
     void createList_duplicateTitle_returns409() throws Exception {
         UUID userId = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(userId)).thenReturn(ResponseEntity.ok("vlad_k"));
 
         createListAndExpect201(userId, "Домашние дела");
 
@@ -92,6 +119,9 @@ public class TaskManagementIntegrationTest {
         UUID userA = UUID.randomUUID();
         UUID userB = UUID.randomUUID();
 
+        when(identityClient.getUserLogin(userA)).thenReturn(ResponseEntity.ok("userA"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB"));
+
         createListAndExpect201(userA, "Домашние дела");
 
         String listId = getListsAndExpect200_AndGetFirstListId(userA);
@@ -102,6 +132,12 @@ public class TaskManagementIntegrationTest {
 
         acceptInviteAndExpect200(userB, token);
 
+        getListsAndExpect200(userA)
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(listId))
+                .andExpect(jsonPath("$[0].isOwner").value(true))
+                .andExpect(jsonPath("$[0].membersCount").value(2));
+
         getListsAndExpect200(userB)
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].id").value(listId))
@@ -109,17 +145,32 @@ public class TaskManagementIntegrationTest {
                 .andExpect(jsonPath("$[0].isOwner").value(false))
                 .andExpect(jsonPath("$[0].membersCount").value(2));
 
-        getListsAndExpect200(userA)
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(listId))
-                .andExpect(jsonPath("$[0].isOwner").value(true))
-                .andExpect(jsonPath("$[0].membersCount").value(2));
+        getListDetailsAndExpect200(userA, listId)
+                .andExpect(jsonPath("$.id").value(listId))
+                .andExpect(jsonPath("$.title").value("Домашние дела"))
+                .andExpect(jsonPath("$.ownerUserId").value(userA.toString()))
+                .andExpect(jsonPath("$.isOwner").value(true))
+                .andExpect(jsonPath("$.members.length()").value(2))
+                .andExpect(jsonPath("$.members[?(@.userId=='" + userA + "')].login").value(hasItem("userA")))
+                .andExpect(jsonPath("$.members[?(@.userId=='" + userB + "')].login").value(hasItem("userB")));
+
+        getListDetailsAndExpect200(userB, listId)
+                .andExpect(jsonPath("$.id").value(listId))
+                .andExpect(jsonPath("$.title").value("Домашние дела"))
+                .andExpect(jsonPath("$.ownerUserId").value(userA.toString()))
+                .andExpect(jsonPath("$.isOwner").value(false))
+                .andExpect(jsonPath("$.members.length()").value(2))
+                .andExpect(jsonPath("$.members[?(@.userId=='" + userA + "')].login").value(hasItem("userA")))
+                .andExpect(jsonPath("$.members[?(@.userId=='" + userB + "')].login").value(hasItem("userB")));
     }
 
     @Test
     void inviteFlow_userBCreatesOwnList_userADoesNotSeeIt() throws Exception {
         UUID userA = UUID.randomUUID();
         UUID userB = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(userA)).thenReturn(ResponseEntity.ok("userA"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB"));
 
         createListAndExpect201(userA, "A");
 
@@ -148,6 +199,9 @@ public class TaskManagementIntegrationTest {
         UUID userA = UUID.randomUUID();
         UUID userB = UUID.randomUUID();
 
+        when(identityClient.getUserLogin(userA)).thenReturn(ResponseEntity.ok("userA"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB"));
+
         createListAndExpect201(userA, "Домашние дела");
 
         String listId = getListsAndExpect200_AndGetFirstListId(userA);
@@ -169,6 +223,8 @@ public class TaskManagementIntegrationTest {
     @Test
     void acceptInvite_ownerCannotJoinOwnList_returns409() throws Exception {
         UUID owner = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("userA"));
 
         createListAndExpect201(owner, "A");
 
@@ -203,6 +259,8 @@ public class TaskManagementIntegrationTest {
         UUID owner = UUID.randomUUID();
         UUID otherUser = UUID.randomUUID();
 
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("userA"));
+
         createListAndExpect201(owner, "A");
 
         String listId = getListsAndExpect200_AndGetFirstListId(owner);
@@ -228,6 +286,8 @@ public class TaskManagementIntegrationTest {
     void acceptInvite_expiredInvite_returns400_andDoesNotAddUser() throws Exception {
         UUID owner = UUID.randomUUID();
         UUID user = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("userA"));
 
         createListAndExpect201(owner, "A");
 
@@ -317,5 +377,11 @@ public class TaskManagementIntegrationTest {
 
     private String getListsAndExpect200_AndGetFirstListId(UUID userId) throws Exception {
         return getListsAndExpect200_GetJson(userId).get(0).get("id").asText();
+    }
+
+    private ResultActions getListDetailsAndExpect200(UUID userId, String listId) throws Exception {
+        return mockMvc.perform(get("/api/v1/lists/{listId}", listId)
+                        .header("X-User-Id", userId.toString()))
+                .andExpect(status().isOk());
     }
 }

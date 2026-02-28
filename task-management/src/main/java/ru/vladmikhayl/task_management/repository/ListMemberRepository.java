@@ -13,4 +13,6 @@ public interface ListMemberRepository extends JpaRepository<ListMember, ListMemb
     boolean existsById_ListIdAndId_UserId(UUID listId, UUID userId);
 
     List<ListMember> findAllById_UserId(UUID userId);
+
+    List<ListMember> findAllById_ListId(UUID listId);
 }

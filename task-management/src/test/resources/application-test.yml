@@ -6,3 +6,7 @@ spring:
   cloud:
     config:
       enabled: false
+
+security:
+  internal:
+    token: "internal-token"

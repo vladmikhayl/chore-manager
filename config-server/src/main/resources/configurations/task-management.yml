@@ -24,3 +24,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+security:
+  internal:
+    token: "super-secret-internal-token"

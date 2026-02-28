@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
+import ru.vladmikhayl.task_management.dto.response.TodoListDetailsResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
 import ru.vladmikhayl.task_management.service.TaskManagementService;
 
@@ -84,5 +85,19 @@ public class TaskManagementController {
     ) {
         taskManagementService.acceptInvite(userId, request.getToken());
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/lists/{listId}")
+    @Operation(summary = "Получить общую информацию о списке дел")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Успешно"),
+            @ApiResponse(responseCode = "403", description = "Пользователь не состоит в списке", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Список дел не найден", content = @Content)
+    })
+    public ResponseEntity<TodoListDetailsResponse> getListDetails(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @PathVariable UUID listId
+    ) throws AccessDeniedException {
+        return ResponseEntity.ok(taskManagementService.getListDetails(userId, listId));
     }
 }

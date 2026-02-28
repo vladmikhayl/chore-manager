@@ -8,6 +8,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.ResponseEntity;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
@@ -15,9 +16,11 @@ import ru.vladmikhayl.task_management.entity.ListInvite;
 import ru.vladmikhayl.task_management.entity.ListMember;
 import ru.vladmikhayl.task_management.entity.ListMemberId;
 import ru.vladmikhayl.task_management.entity.TodoList;
+import ru.vladmikhayl.task_management.feign.IdentityClient;
 import ru.vladmikhayl.task_management.repository.ListInviteRepository;
 import ru.vladmikhayl.task_management.repository.ListMemberRepository;
 import ru.vladmikhayl.task_management.repository.TodoListRepository;
+import ru.vladmikhayl.task_management.dto.response.TodoListMemberResponse;
 
 import java.nio.file.AccessDeniedException;
 import java.time.Clock;
@@ -40,6 +43,9 @@ public class TaskManagementServiceTest {
 
     @Mock
     private ListInviteRepository listInviteRepository;
+
+    @Mock
+    private IdentityClient identityClient;
 
     @Mock
     private Clock clock;
@@ -72,10 +78,10 @@ public class TaskManagementServiceTest {
         UUID memberId2 = UUID.randomUUID();
 
         when(listMemberRepository.findAllById_UserId(userId)).thenReturn(List.of(
-                ListMember.builder().id(new ListMemberId(ownerId1, userId)).build(),
-                ListMember.builder().id(new ListMemberId(ownerId2, userId)).build(),
-                ListMember.builder().id(new ListMemberId(memberId1, userId)).build(),
-                ListMember.builder().id(new ListMemberId(memberId2, userId)).build()
+                ListMember.builder().id(new ListMemberId(ownerId1, userId)).login("user").build(),
+                ListMember.builder().id(new ListMemberId(ownerId2, userId)).login("user").build(),
+                ListMember.builder().id(new ListMemberId(memberId1, userId)).login("user").build(),
+                ListMember.builder().id(new ListMemberId(memberId2, userId)).login("user").build()
         ));
 
         // 2 owner-списка
@@ -135,6 +141,9 @@ public class TaskManagementServiceTest {
     void createList_success_saves() {
         UUID userId = UUID.randomUUID();
 
+        String identityLogin = "vlad_k";
+        when(identityClient.getUserLogin(userId)).thenReturn(ResponseEntity.ok(identityLogin));
+
         CreateTodoListRequest req = CreateTodoListRequest.builder()
                 .title("  Домашние дела  ")
                 .build();
@@ -164,6 +173,7 @@ public class TaskManagementServiceTest {
         ListMember savedMember = memberCaptor.getValue();
         assertThat(savedMember.getId().getListId()).isEqualTo(savedListId);
         assertThat(savedMember.getId().getUserId()).isEqualTo(userId);
+        assertThat(savedMember.getLogin()).isEqualTo("vlad_k");
     }
 
     @Test
@@ -250,6 +260,9 @@ public class TaskManagementServiceTest {
         Instant now = Instant.parse("2026-02-23T12:00:00Z");
         when(clock.instant()).thenReturn(now);
 
+        String identityLogin = "member_login";
+        when(identityClient.getUserLogin(userId)).thenReturn(ResponseEntity.ok(identityLogin));
+
         ListInvite invite = ListInvite.builder()
                 .id(UUID.randomUUID())
                 .listId(listId)
@@ -270,6 +283,7 @@ public class TaskManagementServiceTest {
 
         assertThat(saved.getId().getListId()).isEqualTo(listId);
         assertThat(saved.getId().getUserId()).isEqualTo(userId);
+        assertThat(saved.getLogin()).isEqualTo("member_login");
     }
 
     @Test
@@ -367,5 +381,119 @@ public class TaskManagementServiceTest {
                 .hasMessage("Вы уже состоите в этом списке");
 
         verify(listMemberRepository, never()).save(any());
+    }
+
+    @Test
+    void getListDetails_success_userIsOwner() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+
+        TodoList list = TodoList.builder()
+                .id(listId)
+                .title("Домашние дела")
+                .ownerUserId(userId)
+                .build();
+
+        when(todoListRepository.findById(listId)).thenReturn(Optional.of(list));
+        when(listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)).thenReturn(true);
+
+        UUID member2 = UUID.randomUUID();
+
+        when(listMemberRepository.findAllById_ListId(listId)).thenReturn(List.of(
+                ListMember.builder()
+                        .id(new ListMemberId(listId, userId))
+                        .login("user1")
+                        .build(),
+                ListMember.builder()
+                        .id(new ListMemberId(listId, member2))
+                        .login("user2")
+                        .build()
+        ));
+
+        var result = taskManagementService.getListDetails(userId, listId);
+
+        assertThat(result.getId()).isEqualTo(listId);
+        assertThat(result.getTitle()).isEqualTo("Домашние дела");
+        assertThat(result.getOwnerUserId()).isEqualTo(userId);
+        assertThat(result.isOwner()).isTrue();
+
+        assertThat(result.getMembers())
+                .extracting(TodoListMemberResponse::getUserId, TodoListMemberResponse::getLogin)
+                .containsExactly(
+                        tuple(userId, "user1"),
+                        tuple(member2, "user2")
+                );
+    }
+
+    @Test
+    void getListDetails_success_userIsMemberButNotOwner() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+
+        TodoList list = TodoList.builder()
+                .id(listId)
+                .title("Список соседей")
+                .ownerUserId(ownerId)
+                .build();
+
+        when(todoListRepository.findById(listId)).thenReturn(Optional.of(list));
+        when(listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)).thenReturn(true);
+
+        when(listMemberRepository.findAllById_ListId(listId)).thenReturn(List.of(
+                ListMember.builder()
+                        .id(new ListMemberId(listId, ownerId))
+                        .login("owner")
+                        .build(),
+                ListMember.builder()
+                        .id(new ListMemberId(listId, userId))
+                        .login("member")
+                        .build()
+        ));
+
+        var result = taskManagementService.getListDetails(userId, listId);
+
+        assertThat(result.getId()).isEqualTo(listId);
+        assertThat(result.getTitle()).isEqualTo("Список соседей");
+        assertThat(result.isOwner()).isFalse();
+        assertThat(result.getOwnerUserId()).isEqualTo(ownerId);
+
+        assertThat(result.getMembers())
+                .extracting(TodoListMemberResponse::getUserId, TodoListMemberResponse::getLogin)
+                .containsExactly(
+                        tuple(ownerId, "owner"),
+                        tuple(userId, "member")
+                );
+    }
+
+    @Test
+    void getListDetails_userNotMember_throwsAccessDenied() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+
+        TodoList list = TodoList.builder()
+                .id(listId)
+                .title("Домашние дела")
+                .ownerUserId(UUID.randomUUID())
+                .build();
+
+        when(todoListRepository.findById(listId)).thenReturn(Optional.of(list));
+        when(listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)).thenReturn(false);
+
+        assertThatThrownBy(() -> taskManagementService.getListDetails(userId, listId))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("Вы не состоите в этом списке дел");
+    }
+
+    @Test
+    void getListDetails_listNotFound_throwsNotFound() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+
+        when(todoListRepository.findById(listId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> taskManagementService.getListDetails(userId, listId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Список дел не найден");
     }
 }

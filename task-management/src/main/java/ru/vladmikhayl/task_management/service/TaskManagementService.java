@@ -1,5 +1,6 @@
 package ru.vladmikhayl.task_management.service;
 
+import feign.FeignException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -7,11 +8,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
+import ru.vladmikhayl.task_management.dto.response.TodoListDetailsResponse;
+import ru.vladmikhayl.task_management.dto.response.TodoListMemberResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
 import ru.vladmikhayl.task_management.entity.ListInvite;
 import ru.vladmikhayl.task_management.entity.ListMember;
 import ru.vladmikhayl.task_management.entity.ListMemberId;
 import ru.vladmikhayl.task_management.entity.TodoList;
+import ru.vladmikhayl.task_management.feign.IdentityClient;
 import ru.vladmikhayl.task_management.repository.ListInviteRepository;
 import ru.vladmikhayl.task_management.repository.ListMemberRepository;
 import ru.vladmikhayl.task_management.repository.TodoListRepository;
@@ -30,6 +34,8 @@ public class TaskManagementService {
     private final TodoListRepository todoListRepository;
     private final ListMemberRepository listMemberRepository;
     private final ListInviteRepository listInviteRepository;
+
+    private final IdentityClient identityClient;
 
     private final Clock clock;
 
@@ -78,6 +84,7 @@ public class TaskManagementService {
         listMemberRepository.save(
                 ListMember.builder()
                         .id(new ListMemberId(list.getId(), userId))
+                        .login(resolveLogin(userId))
                         .build()
         );
     }
@@ -137,7 +144,50 @@ public class TaskManagementService {
         listMemberRepository.save(
                 ListMember.builder()
                         .id(new ListMemberId(listId, userId))
+                        .login(resolveLogin(userId))
                         .build()
         );
+    }
+
+    @Transactional
+    public TodoListDetailsResponse getListDetails(UUID userId, UUID listId) throws AccessDeniedException {
+        var list = todoListRepository.findById(listId)
+                .orElseThrow(() -> new EntityNotFoundException("Список дел не найден"));
+
+        if (!listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
+            throw new AccessDeniedException("Вы не состоите в этом списке дел");
+        }
+
+        var members = listMemberRepository.findAllById_ListId(listId).stream()
+                .map(m -> TodoListMemberResponse.builder()
+                        .userId(m.getId().getUserId())
+                        .login(m.getLogin())
+                        .build())
+                .toList();
+
+        return TodoListDetailsResponse.builder()
+                .id(list.getId())
+                .title(list.getTitle())
+                .ownerUserId(list.getOwnerUserId())
+                .isOwner(list.getOwnerUserId().equals(userId))
+                .members(members)
+                .build();
+    }
+
+    private String resolveLogin(UUID userId) {
+        try {
+            var response = identityClient.getUserLogin(userId);
+
+            String login = response.getBody();
+            if (!response.getStatusCode().is2xxSuccessful() || login == null) {
+                throw new IllegalStateException("Не удалось получить логин пользователя");
+            }
+
+            return login;
+        } catch (FeignException.NotFound e) {
+            throw new EntityNotFoundException("Пользователь не найден");
+        } catch (FeignException e) {
+            throw new IllegalStateException("Не удалось получить логин пользователя");
+        }
     }
 }

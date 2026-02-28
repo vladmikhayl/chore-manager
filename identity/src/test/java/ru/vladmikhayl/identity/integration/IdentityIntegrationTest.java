@@ -213,6 +213,28 @@ public class IdentityIntegrationTest {
                 .andExpect(jsonPath("$.timezoneOffsetHours").value(5));
     }
 
+    @Test
+    void internal_getUserLogin_success() throws Exception {
+        String login = randomLogin();
+        String password = "password";
+
+        RegisterRequest registerRequest = RegisterRequest.builder()
+                .login(login)
+                .password(password)
+                .build();
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerRequest)))
+                .andExpect(status().isCreated());
+
+        UUID userId = userRepository.findByLogin(login).orElseThrow().getId();
+
+        mockMvc.perform(get("/api/v1/internal/users/{userId}/login", userId))
+                .andExpect(status().isOk())
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString()).isEqualTo(login));
+    }
+
     private String randomLogin() {
         return "user_" + UUID.randomUUID().toString().substring(0, 10);
     }
