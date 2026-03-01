@@ -18,6 +18,7 @@ import ru.vladmikhayl.task_management.FeignClientTestConfig;
 import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
+import ru.vladmikhayl.task_management.dto.request.UpdateAssignmentRuleRequest;
 import ru.vladmikhayl.task_management.entity.AssignmentType;
 import ru.vladmikhayl.task_management.entity.ListInvite;
 import ru.vladmikhayl.task_management.entity.RecurrenceType;
@@ -34,8 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -379,6 +379,63 @@ public class TaskManagementIntegrationTest {
         assertThat(rrNode.get("roundRobinUsers").toString())
                 .contains(owner.toString()).contains("owner_login")
                 .contains(userB.toString()).contains("userB_login");
+    }
+
+    @Test
+    void updateAssignmentRuleFlow_createTask_thenGetOldRule_thenUpdate_thenGetNewRule() throws Exception {
+        UUID owner = UUID.randomUUID();
+        UUID userB = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("owner_login"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB_login"));
+
+        createListAndExpect201(owner, "Домашние дела");
+        String listId = getListsAndExpect200_AndGetFirstListId(owner);
+
+        String token = createInviteAndExpect201(owner, listId);
+        acceptInviteAndExpect200(userB, token);
+
+        // task with RoundRobin
+        CreateTaskRequest rrReq = CreateTaskRequest.builder()
+                .title("Покупки")
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdays(Set.of(0, 2, 4))
+                .assignmentType(AssignmentType.RoundRobin)
+                .roundRobinUserIds(List.of(owner, userB))
+                .build();
+
+        String taskId = createTaskAndExpect201_AndGetId(owner, listId, rrReq);
+
+        var tasksBefore = getTasksAndExpect200_GetJson(owner, listId);
+        var nodeBefore = findTaskById(tasksBefore, taskId);
+
+        assertThat(nodeBefore.get("assignmentType").asText()).isEqualTo("RoundRobin");
+        assertThat(nodeBefore.get("rrCursor").asInt()).isEqualTo(0);
+        assertThat(nodeBefore.get("roundRobinUsers").isArray()).isTrue();
+        assertThat(nodeBefore.get("roundRobinUsers").size()).isEqualTo(2);
+        assertThat(nodeBefore.get("roundRobinUsers").toString())
+                .contains(owner.toString()).contains("owner_login")
+                .contains(userB.toString()).contains("userB_login");
+
+        // change to FixedUser
+        UpdateAssignmentRuleRequest updateReq = UpdateAssignmentRuleRequest.builder()
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(userB)
+                .build();
+
+        mockMvc.perform(put("/api/v1/tasks/{taskId}/assignment-rule", taskId)
+                        .header("X-User-Id", owner.toString())
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateReq)))
+                .andExpect(status().isOk());
+
+        var tasksAfter = getTasksAndExpect200_GetJson(owner, listId);
+        var nodeAfter = findTaskById(tasksAfter, taskId);
+
+        assertThat(nodeAfter.get("assignmentType").asText()).isEqualTo("FixedUser");
+        assertThat(nodeAfter.get("fixedUserId").asText()).isEqualTo(userB.toString());
+        assertThat(nodeAfter.get("roundRobinUsers").isNull()).isTrue();
+        assertThat(nodeAfter.get("rrCursor").isNull()).isTrue();
     }
 
     private ResultActions getListsAndExpect200(UUID userId) throws Exception {

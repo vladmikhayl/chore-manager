@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
+import ru.vladmikhayl.task_management.dto.request.UpdateAssignmentRuleRequest;
 import ru.vladmikhayl.task_management.dto.response.*;
 import ru.vladmikhayl.task_management.entity.*;
 import ru.vladmikhayl.task_management.entity.task.*;
@@ -184,9 +185,15 @@ public class TaskManagementService {
             throw new DataIntegrityViolationException("В этом списке уже есть задача с таким названием");
         }
 
-        validateCreateTaskRecurrence(request);
+        validateTaskRecurrenceRule(request);
 
-        validateCreateTaskAssignment(request, listId);
+        validateTaskAssignmentRule(
+                listId,
+                request.getAssignmentType(),
+                request.getFixedUserId(),
+                request.getRoundRobinUserIds(),
+                request.getWeekdayAssignees()
+        );
 
         Task task = Task.builder()
                 .listId(listId)
@@ -291,7 +298,66 @@ public class TaskManagementService {
         return result;
     }
 
-    private void validateCreateTaskRecurrence(CreateTaskRequest request) {
+    @Transactional
+    public void updateAssignmentRule(UUID userId, UUID taskId, UpdateAssignmentRuleRequest request) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Задача не найдена"));
+
+        UUID listId = task.getListId();
+
+        if (!listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Вы не состоите в этом списке дел");
+        }
+
+        validateTaskAssignmentRule(
+                listId,
+                request.getAssignmentType(),
+                request.getFixedUserId(),
+                request.getRoundRobinUserIds(),
+                request.getWeekdayAssignees()
+        );
+
+        taskAssignmentCandidateRepository.deleteAllById_TaskId(taskId);
+        taskWeekdayAssigneeRepository.deleteAllById_TaskId(taskId);
+
+        task.setAssignmentType(request.getAssignmentType());
+
+        if (request.getAssignmentType() == AssignmentType.FixedUser) {
+            task.setFixedUserId(request.getFixedUserId());
+            task.setRrCursor(null);
+        }
+
+        if (request.getAssignmentType() == AssignmentType.RoundRobin) {
+            task.setFixedUserId(null);
+            task.setRrCursor(0);
+
+            for (UUID candidateId : request.getRoundRobinUserIds()) {
+                taskAssignmentCandidateRepository.save(
+                        TaskAssignmentCandidate.builder()
+                                .id(new TaskAssignmentCandidateId(taskId, candidateId))
+                                .build()
+                );
+            }
+        }
+
+        if (request.getAssignmentType() == AssignmentType.ByWeekday) {
+            task.setFixedUserId(null);
+            task.setRrCursor(null);
+
+            for (var e : request.getWeekdayAssignees().entrySet()) {
+                taskWeekdayAssigneeRepository.save(
+                        TaskWeekdayAssignee.builder()
+                                .id(new TaskWeekdayAssigneeId(taskId, e.getKey()))
+                                .userId(e.getValue())
+                                .build()
+                );
+            }
+        }
+
+        taskRepository.save(task);
+    }
+
+    private void validateTaskRecurrenceRule(CreateTaskRequest request) {
         if (request.getRecurrenceType() == RecurrenceType.EveryNdays) {
             if (request.getIntervalDays() == null) {
                 throw new IllegalArgumentException("Для EveryNdays нужно указать intervalDays");
@@ -305,21 +371,20 @@ public class TaskManagementService {
         }
     }
 
-    private void validateCreateTaskAssignment(CreateTaskRequest request, UUID listId) {
-        if (request.getAssignmentType() == AssignmentType.FixedUser) {
-            if (request.getFixedUserId() == null) {
+    private void validateTaskAssignmentRule(UUID listId, AssignmentType assignmentType, UUID fixedUserId, List<UUID> roundRobinUserIds, Map<Integer, UUID> weekdayAssignees) {
+        if (assignmentType == AssignmentType.FixedUser) {
+            if (fixedUserId == null) {
                 throw new IllegalArgumentException("Для FixedUser нужно указать fixedUserId");
             }
-            assertUserIsMember(listId, request.getFixedUserId());
+            assertUserIsMember(listId, fixedUserId);
         }
 
-        if (request.getAssignmentType() == AssignmentType.RoundRobin) {
-            var ids = request.getRoundRobinUserIds();
-            if (ids == null || ids.isEmpty()) {
+        if (assignmentType == AssignmentType.RoundRobin) {
+            if (roundRobinUserIds == null || roundRobinUserIds.isEmpty()) {
                 throw new IllegalArgumentException("Для RoundRobin нужно указать roundRobinUserIds");
             }
-            var unique = new LinkedHashSet<>(ids);
-            if (unique.size() != ids.size()) {
+            var unique = new LinkedHashSet<>(roundRobinUserIds);
+            if (unique.size() != roundRobinUserIds.size()) {
                 throw new IllegalArgumentException("roundRobinUserIds содержит дубликаты");
             }
             for (UUID id : unique) {
@@ -327,19 +392,18 @@ public class TaskManagementService {
             }
         }
 
-        if (request.getAssignmentType() == AssignmentType.ByWeekday) {
-            var map = request.getWeekdayAssignees();
-            if (map == null || map.isEmpty()) {
+        if (assignmentType == AssignmentType.ByWeekday) {
+            if (weekdayAssignees == null || weekdayAssignees.isEmpty()) {
                 throw new IllegalArgumentException("Для ByWeekday нужно указать weekdayAssignees");
             }
-            if (map.size() != 7) {
+            if (weekdayAssignees.size() != 7) {
                 throw new IllegalArgumentException("weekdayAssignees должен содержать все 7 дней");
             }
             for (int d = 0; d <= 6; d++) {
-                if (!map.containsKey(d) || map.get(d) == null) {
+                if (!weekdayAssignees.containsKey(d) || weekdayAssignees.get(d) == null) {
                     throw new IllegalArgumentException("weekdayAssignees должен содержать ключи 0..6");
                 }
-                assertUserIsMember(listId, map.get(d));
+                assertUserIsMember(listId, weekdayAssignees.get(d));
             }
         }
     }

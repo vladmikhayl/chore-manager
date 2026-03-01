@@ -9,4 +9,6 @@ import java.util.UUID;
 
 public interface TaskWeekdayAssigneeRepository extends JpaRepository<TaskWeekdayAssignee, TaskWeekdayAssigneeId> {
     List<TaskWeekdayAssignee> findAllById_TaskId(UUID taskId);
+
+    void deleteAllById_TaskId(UUID taskId);
 }

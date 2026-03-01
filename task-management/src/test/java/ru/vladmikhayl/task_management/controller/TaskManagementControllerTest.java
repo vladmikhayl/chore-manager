@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
+import ru.vladmikhayl.task_management.dto.request.UpdateAssignmentRuleRequest;
 import ru.vladmikhayl.task_management.entity.AssignmentType;
 import ru.vladmikhayl.task_management.entity.RecurrenceType;
 import ru.vladmikhayl.task_management.exception.GlobalExceptionHandler;
@@ -25,6 +26,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -236,6 +238,27 @@ public class TaskManagementControllerTest {
                 .build();
 
         mockMvc.perform(post("/api/v1/lists/{listId}/tasks", listId)
+                        .header("X-User-Id", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors").isArray())
+                .andExpect(jsonPath("$.errors[0]").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        verifyNoInteractions(taskManagementService);
+    }
+
+    @Test
+    void updateAssignmentRule_nullAssignmentType_returns400() throws Exception {
+        UUID taskId = UUID.randomUUID();
+
+        UpdateAssignmentRuleRequest req = UpdateAssignmentRuleRequest.builder()
+                .assignmentType(null)
+                .fixedUserId(UUID.randomUUID())
+                .build();
+
+        mockMvc.perform(put("/api/v1/tasks/{taskId}/assignment-rule", taskId)
                         .header("X-User-Id", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))

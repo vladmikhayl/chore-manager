@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
+import ru.vladmikhayl.task_management.dto.request.UpdateAssignmentRuleRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
 import ru.vladmikhayl.task_management.entity.*;
@@ -1107,6 +1108,181 @@ public class TaskManagementServiceTest {
                 .containsEntry(1, tue);
     }
 
+    @Test
+    void updateAssignmentRule_taskNotFound_throwsNotFound() {
+        UUID taskId = UUID.randomUUID();
+        stubTaskNotFound(taskId);
+
+        var req = baseUpdateReq().build();
+
+        assertThatThrownBy(() -> taskManagementService.updateAssignmentRule(USER_ID, taskId, req))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Задача не найдена");
+
+        verify(taskAssignmentCandidateRepository, never()).deleteAllById_TaskId(any());
+        verify(taskWeekdayAssigneeRepository, never()).deleteAllById_TaskId(any());
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAssignmentRule_userNotMember_throwsForbidden() {
+        UUID taskId = UUID.randomUUID();
+        stubTaskFound(taskId, LIST_ID);
+
+        stubUserIsNotMember(LIST_ID, USER_ID);
+
+        var req = baseUpdateReq().build();
+
+        assertThatThrownBy(() -> taskManagementService.updateAssignmentRule(USER_ID, taskId, req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Вы не состоите в этом списке дел");
+
+        verify(taskAssignmentCandidateRepository, never()).deleteAllById_TaskId(any());
+        verify(taskWeekdayAssigneeRepository, never()).deleteAllById_TaskId(any());
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAssignmentRule_fixedUser_withoutFixedUserId_throwsBadRequest() {
+        UUID taskId = UUID.randomUUID();
+        stubTaskFound(taskId, LIST_ID);
+
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        var req = UpdateAssignmentRuleRequest.builder()
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(null)
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.updateAssignmentRule(USER_ID, taskId, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Для FixedUser нужно указать fixedUserId");
+
+        verify(taskAssignmentCandidateRepository, never()).deleteAllById_TaskId(any());
+        verify(taskWeekdayAssigneeRepository, never()).deleteAllById_TaskId(any());
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAssignmentRule_success_toFixedUser() {
+        UUID taskId = UUID.randomUUID();
+        stubTaskFound(taskId, LIST_ID);
+
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        UUID newFixed = UUID.randomUUID();
+        stubUserIsMember(LIST_ID, newFixed);
+
+        var req = UpdateAssignmentRuleRequest.builder()
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(newFixed)
+                .build();
+
+        taskManagementService.updateAssignmentRule(USER_ID, taskId, req);
+
+        verify(taskAssignmentCandidateRepository).deleteAllById_TaskId(taskId);
+        verify(taskWeekdayAssigneeRepository).deleteAllById_TaskId(taskId);
+
+        ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(captor.capture());
+        Task saved = captor.getValue();
+        assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.FixedUser);
+        assertThat(saved.getFixedUserId()).isEqualTo(newFixed);
+        assertThat(saved.getRrCursor()).isNull();
+
+        verify(taskAssignmentCandidateRepository, never()).save(any());
+        verify(taskWeekdayAssigneeRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAssignmentRule_success_toRoundRobin() {
+        UUID taskId = UUID.randomUUID();
+        stubTaskFound(taskId, LIST_ID);
+
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        UUID c1 = UUID.randomUUID();
+        UUID c2 = UUID.randomUUID();
+        stubUserIsMember(LIST_ID, c1);
+        stubUserIsMember(LIST_ID, c2);
+
+        var req = UpdateAssignmentRuleRequest.builder()
+                .assignmentType(AssignmentType.RoundRobin)
+                .roundRobinUserIds(List.of(c1, c2))
+                .build();
+
+        taskManagementService.updateAssignmentRule(USER_ID, taskId, req);
+
+        verify(taskAssignmentCandidateRepository).deleteAllById_TaskId(taskId);
+        verify(taskWeekdayAssigneeRepository).deleteAllById_TaskId(taskId);
+
+        ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(taskCaptor.capture());
+        Task saved = taskCaptor.getValue();
+        assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.RoundRobin);
+        assertThat(saved.getFixedUserId()).isNull();
+        assertThat(saved.getRrCursor()).isEqualTo(0);
+
+        ArgumentCaptor<TaskAssignmentCandidate> cCaptor = ArgumentCaptor.forClass(TaskAssignmentCandidate.class);
+        verify(taskAssignmentCandidateRepository, times(2)).save(cCaptor.capture());
+        assertThat(cCaptor.getAllValues())
+                .extracting(x -> x.getId().getTaskId(), x -> x.getId().getUserId())
+                .containsExactlyInAnyOrder(
+                        tuple(taskId, c1),
+                        tuple(taskId, c2)
+                );
+
+        verify(taskWeekdayAssigneeRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAssignmentRule_success_toByWeekday() {
+        UUID taskId = UUID.randomUUID();
+        stubTaskFound(taskId, LIST_ID);
+
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        UUID u0 = UUID.randomUUID();
+        UUID u1 = UUID.randomUUID();
+        stubUserIsMember(LIST_ID, u0);
+        stubUserIsMember(LIST_ID, u1);
+
+        Map<Integer, UUID> map = allWeekdayAssignees(u0, u1);
+
+        var req = UpdateAssignmentRuleRequest.builder()
+                .assignmentType(AssignmentType.ByWeekday)
+                .weekdayAssignees(map)
+                .build();
+
+        taskManagementService.updateAssignmentRule(USER_ID, taskId, req);
+
+        verify(taskAssignmentCandidateRepository).deleteAllById_TaskId(taskId);
+        verify(taskWeekdayAssigneeRepository).deleteAllById_TaskId(taskId);
+
+        ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(taskCaptor.capture());
+        Task saved = taskCaptor.getValue();
+        assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.ByWeekday);
+        assertThat(saved.getFixedUserId()).isNull();
+        assertThat(saved.getRrCursor()).isNull();
+
+        ArgumentCaptor<TaskWeekdayAssignee> aCaptor = ArgumentCaptor.forClass(TaskWeekdayAssignee.class);
+        verify(taskWeekdayAssigneeRepository, times(7)).save(aCaptor.capture());
+        assertThat(aCaptor.getAllValues())
+                .extracting(x -> x.getId().getTaskId(), x -> x.getId().getWeekday(), TaskWeekdayAssignee::getUserId)
+                .containsExactlyInAnyOrder(
+                        tuple(taskId, 0, map.get(0)),
+                        tuple(taskId, 1, map.get(1)),
+                        tuple(taskId, 2, map.get(2)),
+                        tuple(taskId, 3, map.get(3)),
+                        tuple(taskId, 4, map.get(4)),
+                        tuple(taskId, 5, map.get(5)),
+                        tuple(taskId, 6, map.get(6))
+                );
+
+        verify(taskAssignmentCandidateRepository, never()).save(any());
+    }
+
     private void stubListExists(UUID listId) {
         when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).build()));
     }
@@ -1159,5 +1335,31 @@ public class TaskManagementServiceTest {
 
     private static Set<Integer> days(Integer... days) {
         return new LinkedHashSet<>(Arrays.asList(days));
+    }
+
+    private void stubTaskNotFound(UUID taskId) {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.empty());
+    }
+
+    private Task stubTaskFound(UUID taskId, UUID listId) {
+        Task t = Task.builder()
+                .id(taskId)
+                .listId(listId)
+                .title("t")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(UUID.randomUUID())
+                .rrCursor(null)
+                .build();
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(t));
+        return t;
+    }
+
+    private UpdateAssignmentRuleRequest.UpdateAssignmentRuleRequestBuilder baseUpdateReq() {
+        return UpdateAssignmentRuleRequest.builder()
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(UUID.randomUUID());
     }
 }

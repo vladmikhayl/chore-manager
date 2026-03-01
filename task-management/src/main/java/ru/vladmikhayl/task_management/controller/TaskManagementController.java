@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
+import ru.vladmikhayl.task_management.dto.request.UpdateAssignmentRuleRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TaskResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListDetailsResponse;
@@ -131,5 +132,21 @@ public class TaskManagementController {
             @PathVariable UUID listId
     ) {
         return ResponseEntity.ok(taskManagementService.getTasks(userId, listId));
+    }
+
+    @PutMapping("/tasks/{taskId}/assignment-rule")
+    @Operation(summary = "Изменить правило назначения исполнителя задачи")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Успешно"),
+            @ApiResponse(responseCode = "403", description = "Пользователь не состоит в списке", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Задача не найдена", content = @Content)
+    })
+    public ResponseEntity<Void> updateAssignmentRule(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @PathVariable UUID taskId,
+            @Valid @RequestBody UpdateAssignmentRuleRequest request
+    ) {
+        taskManagementService.updateAssignmentRule(userId, taskId, request);
+        return ResponseEntity.ok().build();
     }
 }
