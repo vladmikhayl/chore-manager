@@ -8,6 +8,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
@@ -15,9 +16,7 @@ import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
 import ru.vladmikhayl.task_management.entity.*;
-import ru.vladmikhayl.task_management.entity.task.Task;
-import ru.vladmikhayl.task_management.entity.task.TaskAssignmentCandidate;
-import ru.vladmikhayl.task_management.entity.task.TaskWeekdayAssignee;
+import ru.vladmikhayl.task_management.entity.task.*;
 import ru.vladmikhayl.task_management.feign.IdentityClient;
 import ru.vladmikhayl.task_management.repository.*;
 import ru.vladmikhayl.task_management.dto.response.TodoListMemberResponse;
@@ -927,6 +926,185 @@ public class TaskManagementServiceTest {
                 );
 
         verifyNoInteractions(taskAssignmentCandidateRepository);
+    }
+
+    @Test
+    void getTasks_listNotFound_throwsNotFound() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+
+        when(todoListRepository.findById(listId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> taskManagementService.getTasks(userId, listId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Список дел не найден");
+    }
+
+    @Test
+    void getTasks_userNotMember_throwsForbidden() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+
+        when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).build()));
+        stubUserIsNotMember(listId, userId);
+
+        assertThatThrownBy(() -> taskManagementService.getTasks(userId, listId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    var rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                    assertThat(rse.getReason()).contains("Вы не состоите в этом списке дел");
+                });
+    }
+
+    @Test
+    void getTasks_noTasks_returnsEmpty() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+
+        when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).build()));
+
+        stubUserIsMember(listId, userId);
+
+        when(taskRepository.findAllByListIdOrderByTitleAsc(listId)).thenReturn(List.of());
+
+        var result = taskManagementService.getTasks(userId, listId);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getTasks_success_mixedAssignments_buildsFullResponses() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+
+        when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).build()));
+
+        stubUserIsMember(listId, userId);
+
+        // tasks
+        UUID fixedTaskId = UUID.randomUUID();
+        UUID rrTaskId = UUID.randomUUID();
+        UUID byWTaskId = UUID.randomUUID();
+
+        UUID fixedUserId = UUID.randomUUID();
+
+        Task fixedTask = Task.builder()
+                .id(fixedTaskId)
+                .listId(listId)
+                .title("A fixed")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(2)
+                .weekdaysMask(null)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(fixedUserId)
+                .rrCursor(null)
+                .build();
+
+        int maskMonWedFri = WeekdaysMask.toMask(Set.of(0, 2, 4));
+
+        Task rrTask = Task.builder()
+                .id(rrTaskId)
+                .listId(listId)
+                .title("B rr")
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .intervalDays(null)
+                .weekdaysMask(maskMonWedFri)
+                .assignmentType(AssignmentType.RoundRobin)
+                .fixedUserId(null)
+                .rrCursor(0)
+                .build();
+
+        Task byWeekdayTask = Task.builder()
+                .id(byWTaskId)
+                .listId(listId)
+                .title("C byweekday")
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .intervalDays(null)
+                .weekdaysMask(maskMonWedFri)
+                .assignmentType(AssignmentType.ByWeekday)
+                .fixedUserId(null)
+                .rrCursor(null)
+                .build();
+
+        when(taskRepository.findAllByListIdOrderByTitleAsc(listId)).thenReturn(List.of(fixedTask, rrTask, byWeekdayTask));
+
+        // RoundRobin candidates for rrTask
+        UUID cand1 = UUID.randomUUID();
+        UUID cand2 = UUID.randomUUID();
+
+        when(taskAssignmentCandidateRepository.findAllById_TaskId(rrTaskId)).thenReturn(List.of(
+                TaskAssignmentCandidate.builder().id(new TaskAssignmentCandidateId(rrTaskId, cand1)).build(),
+                TaskAssignmentCandidate.builder().id(new TaskAssignmentCandidateId(rrTaskId, cand2)).build()
+        ));
+
+        // logins from list_members
+        when(listMemberRepository.findById_ListIdAndId_UserId(listId, cand1))
+                .thenReturn(Optional.of(ListMember.builder().id(new ListMemberId(listId, cand1)).login("user1").build()));
+        when(listMemberRepository.findById_ListIdAndId_UserId(listId, cand2))
+                .thenReturn(Optional.of(ListMember.builder().id(new ListMemberId(listId, cand2)).login("user2").build()));
+
+        // ByWeekday assignees for byWTaskId
+        UUID mon = UUID.randomUUID();
+        UUID tue = UUID.randomUUID();
+
+        when(taskWeekdayAssigneeRepository.findAllById_TaskId(byWTaskId)).thenReturn(List.of(
+                TaskWeekdayAssignee.builder()
+                        .id(new TaskWeekdayAssigneeId(byWTaskId, 0))
+                        .userId(mon)
+                        .build(),
+                TaskWeekdayAssignee.builder()
+                        .id(new TaskWeekdayAssigneeId(byWTaskId, 1))
+                        .userId(tue)
+                        .build()
+        ));
+
+        var result = taskManagementService.getTasks(userId, listId);
+
+        assertThat(result).hasSize(3);
+
+        var fixedDto = result.stream().filter(x -> x.getId().equals(fixedTaskId)).findFirst().orElseThrow();
+        assertThat(fixedDto.getTitle()).isEqualTo("A fixed");
+        assertThat(fixedDto.getRecurrenceType()).isEqualTo(RecurrenceType.EveryNdays);
+        assertThat(fixedDto.getIntervalDays()).isEqualTo(2);
+        assertThat(fixedDto.getWeekdaysMask()).isNull();
+        assertThat(fixedDto.getWeekdays()).isNull();
+        assertThat(fixedDto.getAssignmentType()).isEqualTo(AssignmentType.FixedUser);
+        assertThat(fixedDto.getFixedUserId()).isEqualTo(fixedUserId);
+        assertThat(fixedDto.getRrCursor()).isNull();
+        assertThat(fixedDto.getRoundRobinUsers()).isNull();
+        assertThat(fixedDto.getWeekdayAssignees()).isNull();
+
+        var rrDto = result.stream().filter(x -> x.getId().equals(rrTaskId)).findFirst().orElseThrow();
+        assertThat(rrDto.getTitle()).isEqualTo("B rr");
+        assertThat(rrDto.getRecurrenceType()).isEqualTo(RecurrenceType.WeeklyByDays);
+        assertThat(rrDto.getIntervalDays()).isNull();
+        assertThat(rrDto.getWeekdaysMask()).isEqualTo(maskMonWedFri);
+        assertThat(rrDto.getWeekdays()).containsExactlyInAnyOrder(0, 2, 4);
+        assertThat(rrDto.getAssignmentType()).isEqualTo(AssignmentType.RoundRobin);
+        assertThat(rrDto.getFixedUserId()).isNull();
+        assertThat(rrDto.getRrCursor()).isEqualTo(0);
+        assertThat(rrDto.getRoundRobinUsers())
+                .extracting(TodoListMemberResponse::getUserId, TodoListMemberResponse::getLogin)
+                .containsExactlyInAnyOrder(
+                        tuple(cand1, "user1"),
+                        tuple(cand2, "user2")
+                );
+        assertThat(rrDto.getWeekdayAssignees()).isNull();
+
+        var byWDto = result.stream().filter(x -> x.getId().equals(byWTaskId)).findFirst().orElseThrow();
+        assertThat(byWDto.getTitle()).isEqualTo("C byweekday");
+        assertThat(byWDto.getRecurrenceType()).isEqualTo(RecurrenceType.WeeklyByDays);
+        assertThat(byWDto.getIntervalDays()).isNull();
+        assertThat(byWDto.getWeekdaysMask()).isEqualTo(maskMonWedFri);
+        assertThat(byWDto.getWeekdays()).containsExactlyInAnyOrder(0, 2, 4);
+        assertThat(byWDto.getAssignmentType()).isEqualTo(AssignmentType.ByWeekday);
+        assertThat(byWDto.getFixedUserId()).isNull();
+        assertThat(byWDto.getRrCursor()).isNull();
+        assertThat(byWDto.getRoundRobinUsers()).isNull();
+        assertThat(byWDto.getWeekdayAssignees())
+                .containsEntry(0, mon)
+                .containsEntry(1, tue);
     }
 
     private void stubListExists(UUID listId) {

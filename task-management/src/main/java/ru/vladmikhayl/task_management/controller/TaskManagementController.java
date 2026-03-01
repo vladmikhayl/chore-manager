@@ -15,6 +15,7 @@ import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
+import ru.vladmikhayl.task_management.dto.response.TaskResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListDetailsResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
 import ru.vladmikhayl.task_management.service.TaskManagementService;
@@ -116,5 +117,19 @@ public class TaskManagementController {
     ) {
         var created = taskManagementService.createTask(userId, listId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @GetMapping("/lists/{listId}/tasks")
+    @Operation(summary = "Получить список задач в списке дел")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Успешно"),
+            @ApiResponse(responseCode = "403", description = "Пользователь не состоит в списке", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Список дел не найден", content = @Content)
+    })
+    public ResponseEntity<List<TaskResponse>> getTasks(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @PathVariable UUID listId
+    ) {
+        return ResponseEntity.ok(taskManagementService.getTasks(userId, listId));
     }
 }

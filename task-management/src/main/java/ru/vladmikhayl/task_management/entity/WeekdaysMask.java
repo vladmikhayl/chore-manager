@@ -1,5 +1,6 @@
 package ru.vladmikhayl.task_management.entity;
 
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 public final class WeekdaysMask {
@@ -10,5 +11,15 @@ public final class WeekdaysMask {
             mask |= (1 << d);
         }
         return mask;
+    }
+
+    public static Set<Integer> toSet(int mask) {
+        Set<Integer> days = new LinkedHashSet<>();
+        for (int d = 0; d <= 6; d++) {
+            if ((mask & (1 << d)) != 0) {
+                days.add(d);
+            }
+        }
+        return days;
     }
 }

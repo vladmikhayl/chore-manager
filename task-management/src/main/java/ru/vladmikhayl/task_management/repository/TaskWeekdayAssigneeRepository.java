@@ -4,4 +4,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import ru.vladmikhayl.task_management.entity.task.TaskWeekdayAssignee;
 import ru.vladmikhayl.task_management.entity.task.TaskWeekdayAssigneeId;
 
-public interface TaskWeekdayAssigneeRepository extends JpaRepository<TaskWeekdayAssignee, TaskWeekdayAssigneeId> {}
+import java.util.List;
+import java.util.UUID;
+
+public interface TaskWeekdayAssigneeRepository extends JpaRepository<TaskWeekdayAssignee, TaskWeekdayAssigneeId> {
+    List<TaskWeekdayAssignee> findAllById_TaskId(UUID taskId);
+}

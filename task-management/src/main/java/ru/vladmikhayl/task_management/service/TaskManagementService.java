@@ -10,10 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
-import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
-import ru.vladmikhayl.task_management.dto.response.TodoListDetailsResponse;
-import ru.vladmikhayl.task_management.dto.response.TodoListMemberResponse;
-import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
+import ru.vladmikhayl.task_management.dto.response.*;
 import ru.vladmikhayl.task_management.entity.*;
 import ru.vladmikhayl.task_management.entity.task.*;
 import ru.vladmikhayl.task_management.feign.IdentityClient;
@@ -22,10 +19,7 @@ import ru.vladmikhayl.task_management.repository.*;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -229,6 +223,72 @@ public class TaskManagementService {
         }
 
         return task.getId();
+    }
+
+    @Transactional
+    public List<TaskResponse> getTasks(UUID userId, UUID listId) {
+        todoListRepository.findById(listId)
+                .orElseThrow(() -> new EntityNotFoundException("Список дел не найден"));
+
+        if (!listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Вы не состоите в этом списке дел");
+        }
+
+        List<Task> tasks = taskRepository.findAllByListIdOrderByTitleAsc(listId);
+
+        List<TaskResponse> result = new ArrayList<>(tasks.size());
+
+        for (Task task : tasks) {
+            TaskResponse.TaskResponseBuilder dto = TaskResponse.builder()
+                    .id(task.getId())
+                    .listId(task.getListId())
+                    .title(task.getTitle())
+                    .recurrenceType(task.getRecurrenceType())
+                    .intervalDays(task.getIntervalDays())
+                    .weekdaysMask(task.getWeekdaysMask())
+                    .weekdays(task.getWeekdaysMask() != null ? WeekdaysMask.toSet(task.getWeekdaysMask()) : null)
+                    .assignmentType(task.getAssignmentType())
+                    .fixedUserId(task.getFixedUserId())
+                    .rrCursor(task.getRrCursor());
+
+            if (task.getAssignmentType() == AssignmentType.RoundRobin) {
+                List<TaskAssignmentCandidate> candidates =
+                        taskAssignmentCandidateRepository.findAllById_TaskId(task.getId());
+
+                List<TodoListMemberResponse> users = new ArrayList<>(candidates.size());
+
+                for (TaskAssignmentCandidate c : candidates) {
+                    UUID candidateUserId = c.getId().getUserId();
+
+                    ListMember member = listMemberRepository
+                            .findById_ListIdAndId_UserId(listId, candidateUserId)
+                            .orElseThrow(() -> new EntityNotFoundException("Кандидат RoundRobin не найден среди участников списка"));
+
+                    users.add(TodoListMemberResponse.builder()
+                            .userId(candidateUserId)
+                            .login(member.getLogin())
+                            .build());
+                }
+
+                dto.roundRobinUsers(users);
+            }
+
+            if (task.getAssignmentType() == AssignmentType.ByWeekday) {
+                List<TaskWeekdayAssignee> assignees =
+                        taskWeekdayAssigneeRepository.findAllById_TaskId(task.getId());
+
+                Map<Integer, UUID> map = new LinkedHashMap<>();
+                for (TaskWeekdayAssignee a : assignees) {
+                    map.put(a.getId().getWeekday(), a.getUserId());
+                }
+
+                dto.weekdayAssignees(map);
+            }
+
+            result.add(dto.build());
+        }
+
+        return result;
     }
 
     private void validateCreateTaskRecurrence(CreateTaskRequest request) {

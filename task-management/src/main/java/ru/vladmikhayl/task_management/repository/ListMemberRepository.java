@@ -5,6 +5,7 @@ import ru.vladmikhayl.task_management.entity.ListMember;
 import ru.vladmikhayl.task_management.entity.ListMemberId;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface ListMemberRepository extends JpaRepository<ListMember, ListMemberId> {
@@ -15,4 +16,6 @@ public interface ListMemberRepository extends JpaRepository<ListMember, ListMemb
     List<ListMember> findAllById_UserId(UUID userId);
 
     List<ListMember> findAllById_ListId(UUID listId);
+
+    Optional<ListMember> findById_ListIdAndId_UserId(UUID listId, UUID userId);
 }

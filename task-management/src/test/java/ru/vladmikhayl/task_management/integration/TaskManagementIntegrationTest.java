@@ -16,15 +16,21 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import ru.vladmikhayl.task_management.FeignClientTestConfig;
 import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
+import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
+import ru.vladmikhayl.task_management.entity.AssignmentType;
 import ru.vladmikhayl.task_management.entity.ListInvite;
+import ru.vladmikhayl.task_management.entity.RecurrenceType;
 import ru.vladmikhayl.task_management.feign.IdentityClient;
 import ru.vladmikhayl.task_management.repository.ListInviteRepository;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -312,6 +318,69 @@ public class TaskManagementIntegrationTest {
         getListsAndExpect200_AndExpectListsSize(user, 0);
     }
 
+    @Test
+    void tasksFlow_happyPath_createThenGet() throws Exception {
+        UUID owner = UUID.randomUUID();
+        UUID userB = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("owner_login"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB_login"));
+
+        createListAndExpect201(owner, "Домашние дела");
+        String listId = getListsAndExpect200_AndGetFirstListId(owner);
+
+        String token = createInviteAndExpect201(owner, listId);
+        acceptInviteAndExpect200(userB, token);
+
+        CreateTaskRequest fixedReq = CreateTaskRequest.builder()
+                .title("Вынести мусор")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(owner)
+                .build();
+
+        String fixedTaskId = createTaskAndExpect201_AndGetId(owner, listId, fixedReq);
+
+        CreateTaskRequest rrReq = CreateTaskRequest.builder()
+                .title("Покупки")
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdays(Set.of(0, 2, 4))
+                .assignmentType(AssignmentType.RoundRobin)
+                .roundRobinUserIds(List.of(owner, userB))
+                .build();
+
+        String rrTaskId = createTaskAndExpect201_AndGetId(userB, listId, rrReq);
+
+        var tasksJson = getTasksAndExpect200_GetJson(owner, listId);
+
+        assertThat(tasksJson.isArray()).isTrue();
+        assertThat(tasksJson.size()).isEqualTo(2);
+
+        // FixedUser task checks
+        var fixedNode = findTaskById(tasksJson, fixedTaskId);
+        assertThat(fixedNode.get("title").asText()).isEqualTo("Вынести мусор");
+        assertThat(fixedNode.get("recurrenceType").asText()).isEqualTo("EveryNdays");
+        assertThat(fixedNode.get("intervalDays").asInt()).isEqualTo(3);
+        assertThat(fixedNode.get("assignmentType").asText()).isEqualTo("FixedUser");
+        assertThat(fixedNode.get("fixedUserId").asText()).isEqualTo(owner.toString());
+
+        // RoundRobin task checks
+        var rrNode = findTaskById(tasksJson, rrTaskId);
+        assertThat(rrNode.get("title").asText()).isEqualTo("Покупки");
+        assertThat(rrNode.get("recurrenceType").asText()).isEqualTo("WeeklyByDays");
+        assertThat(rrNode.get("weekdaysMask")).isNotNull();
+        assertThat(rrNode.get("weekdays").isArray()).isTrue();
+        assertThat(rrNode.get("weekdays")).extracting(JsonNode::asInt).contains(0, 2, 4);
+        assertThat(rrNode.get("assignmentType").asText()).isEqualTo("RoundRobin");
+        assertThat(rrNode.get("rrCursor").asInt()).isEqualTo(0);
+        assertThat(rrNode.get("roundRobinUsers").isArray()).isTrue();
+        assertThat(rrNode.get("roundRobinUsers").size()).isEqualTo(2);
+        assertThat(rrNode.get("roundRobinUsers").toString())
+                .contains(owner.toString()).contains("owner_login")
+                .contains(userB.toString()).contains("userB_login");
+    }
+
     private ResultActions getListsAndExpect200(UUID userId) throws Exception {
         return mockMvc.perform(get("/api/v1/lists")
                 .header("X-User-Id", userId.toString()))
@@ -383,5 +452,36 @@ public class TaskManagementIntegrationTest {
         return mockMvc.perform(get("/api/v1/lists/{listId}", listId)
                         .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk());
+    }
+
+    private String createTaskAndExpect201_AndGetId(UUID userId, String listId, CreateTaskRequest req) throws Exception {
+        var mvcResult = mockMvc.perform(post("/api/v1/lists/{listId}/tasks", listId)
+                        .header("X-User-Id", userId.toString())
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return objectMapper.readTree(mvcResult.getResponse().getContentAsString()).asText();
+    }
+
+    private ResultActions getTasksAndExpect200(UUID userId, String listId) throws Exception {
+        return mockMvc.perform(get("/api/v1/lists/{listId}/tasks", listId)
+                        .header("X-User-Id", userId.toString()))
+                .andExpect(status().isOk());
+    }
+
+    private JsonNode getTasksAndExpect200_GetJson(UUID userId, String listId) throws Exception {
+        var mvcResult = getTasksAndExpect200(userId, listId).andReturn();
+        return objectMapper.readTree(mvcResult.getResponse().getContentAsString());
+    }
+
+    private JsonNode findTaskById(JsonNode tasksArray, String taskId) {
+        for (JsonNode n : tasksArray) {
+            if (n.has("id") && n.get("id").asText().equals(taskId)) {
+                return n;
+            }
+        }
+        throw new AssertionError("Task with id=" + taskId + " not found in response: " + tasksArray);
     }
 }
