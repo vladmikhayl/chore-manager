@@ -12,13 +12,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
+import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListDetailsResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
 import ru.vladmikhayl.task_management.service.TaskManagementService;
 
-import java.nio.file.AccessDeniedException;
 import java.util.List;
 import java.util.UUID;
 
@@ -99,5 +99,22 @@ public class TaskManagementController {
             @PathVariable UUID listId
     ) {
         return ResponseEntity.ok(taskManagementService.getListDetails(userId, listId));
+    }
+
+    @PostMapping("/lists/{listId}/tasks")
+    @Operation(summary = "Создать задачу в списке дел")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Задача создана"),
+            @ApiResponse(responseCode = "403", description = "Пользователь не состоит в списке", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Список дел не найден", content = @Content),
+            @ApiResponse(responseCode = "409", description = "В списке уже есть задача с таким названием", content = @Content)
+    })
+    public ResponseEntity<UUID> createTask(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @PathVariable UUID listId,
+            @Valid @RequestBody CreateTaskRequest request
+    ) {
+        var created = taskManagementService.createTask(userId, listId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 }

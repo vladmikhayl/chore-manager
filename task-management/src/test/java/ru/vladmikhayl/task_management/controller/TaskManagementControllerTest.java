@@ -12,17 +12,20 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
+import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
+import ru.vladmikhayl.task_management.entity.AssignmentType;
+import ru.vladmikhayl.task_management.entity.RecurrenceType;
 import ru.vladmikhayl.task_management.exception.GlobalExceptionHandler;
 import ru.vladmikhayl.task_management.service.TaskManagementService;
 
+import java.util.Set;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
 public class TaskManagementControllerTest {
@@ -88,6 +91,151 @@ public class TaskManagementControllerTest {
                 .build();
 
         mockMvc.perform(post("/api/v1/invites/accept")
+                        .header("X-User-Id", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors").isArray())
+                .andExpect(jsonPath("$.errors[0]").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        verifyNoInteractions(taskManagementService);
+    }
+
+    @Test
+    void createTask_success_returns201() throws Exception {
+        UUID listId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID createdTaskId = UUID.randomUUID();
+
+        CreateTaskRequest req = CreateTaskRequest.builder()
+                .title("Вынести мусор")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(UUID.randomUUID())
+                .build();
+
+        when(taskManagementService.createTask(eq(userId), eq(listId), any(CreateTaskRequest.class)))
+                .thenReturn(createdTaskId);
+
+        mockMvc.perform(post("/api/v1/lists/{listId}/tasks", listId)
+                        .header("X-User-Id", userId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(content().string("\"" + createdTaskId + "\""));
+    }
+
+    @Test
+    void createTask_nullTitle_returns400() throws Exception {
+        UUID listId = UUID.randomUUID();
+
+        CreateTaskRequest req = CreateTaskRequest.builder()
+                .title(null)
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(UUID.randomUUID())
+                .build();
+
+        mockMvc.perform(post("/api/v1/lists/{listId}/tasks", listId)
+                        .header("X-User-Id", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors").isArray())
+                .andExpect(jsonPath("$.errors[0]").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        verifyNoInteractions(taskManagementService);
+    }
+
+    @Test
+    void createTask_blankTitle_returns400() throws Exception {
+        UUID listId = UUID.randomUUID();
+
+        CreateTaskRequest req = CreateTaskRequest.builder()
+                .title("")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(UUID.randomUUID())
+                .build();
+
+        mockMvc.perform(post("/api/v1/lists/{listId}/tasks", listId)
+                        .header("X-User-Id", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors").isArray())
+                .andExpect(jsonPath("$.errors[0]").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        verifyNoInteractions(taskManagementService);
+    }
+
+    @Test
+    void createTask_nullRecurrenceType_returns400() throws Exception {
+        UUID listId = UUID.randomUUID();
+
+        CreateTaskRequest req = CreateTaskRequest.builder()
+                .title("Вынести мусор")
+                .recurrenceType(null)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(UUID.randomUUID())
+                .build();
+
+        mockMvc.perform(post("/api/v1/lists/{listId}/tasks", listId)
+                        .header("X-User-Id", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors").isArray())
+                .andExpect(jsonPath("$.errors[0]").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        verifyNoInteractions(taskManagementService);
+    }
+
+    @Test
+    void createTask_nullAssignmentType_returns400() throws Exception {
+        UUID listId = UUID.randomUUID();
+
+        CreateTaskRequest req = CreateTaskRequest.builder()
+                .title("Вынести мусор")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(null)
+                .fixedUserId(UUID.randomUUID())
+                .build();
+
+        mockMvc.perform(post("/api/v1/lists/{listId}/tasks", listId)
+                        .header("X-User-Id", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors").isArray())
+                .andExpect(jsonPath("$.errors[0]").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        verifyNoInteractions(taskManagementService);
+    }
+
+    @Test
+    void createTask_weekdaysHasOutOfRangeValue_returns400() throws Exception {
+        UUID listId = UUID.randomUUID();
+
+        CreateTaskRequest req = CreateTaskRequest.builder()
+                .title("Полить цветы")
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdays(Set.of(-1, 2, 4))
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(UUID.randomUUID())
+                .build();
+
+        mockMvc.perform(post("/api/v1/lists/{listId}/tasks", listId)
                         .header("X-User-Id", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))

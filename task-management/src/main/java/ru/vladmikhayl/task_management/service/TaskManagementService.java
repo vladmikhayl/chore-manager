@@ -8,24 +8,22 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListDetailsResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListMemberResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
-import ru.vladmikhayl.task_management.entity.ListInvite;
-import ru.vladmikhayl.task_management.entity.ListMember;
-import ru.vladmikhayl.task_management.entity.ListMemberId;
-import ru.vladmikhayl.task_management.entity.TodoList;
+import ru.vladmikhayl.task_management.entity.*;
+import ru.vladmikhayl.task_management.entity.task.*;
 import ru.vladmikhayl.task_management.feign.IdentityClient;
-import ru.vladmikhayl.task_management.repository.ListInviteRepository;
-import ru.vladmikhayl.task_management.repository.ListMemberRepository;
-import ru.vladmikhayl.task_management.repository.TodoListRepository;
+import ru.vladmikhayl.task_management.repository.*;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,6 +33,9 @@ public class TaskManagementService {
     private final TodoListRepository todoListRepository;
     private final ListMemberRepository listMemberRepository;
     private final ListInviteRepository listInviteRepository;
+    private final TaskRepository taskRepository;
+    private final TaskAssignmentCandidateRepository taskAssignmentCandidateRepository;
+    private final TaskWeekdayAssigneeRepository taskWeekdayAssigneeRepository;
 
     private final IdentityClient identityClient;
 
@@ -173,6 +174,120 @@ public class TaskManagementService {
                 .isOwner(list.getOwnerUserId().equals(userId))
                 .members(members)
                 .build();
+    }
+
+    @Transactional
+    public UUID createTask(UUID userId, UUID listId, CreateTaskRequest request) {
+        todoListRepository.findById(listId).orElseThrow(() -> new EntityNotFoundException("Список дел не найден"));
+
+        if (!listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Вы не состоите в этом списке дел");
+        }
+
+        String title = request.getTitle().trim();
+
+        if (taskRepository.existsByListIdAndTitleIgnoreCase(listId, title)) {
+            throw new DataIntegrityViolationException("В этом списке уже есть задача с таким названием");
+        }
+
+        validateCreateTaskRecurrence(request);
+
+        validateCreateTaskAssignment(request, listId);
+
+        Task task = Task.builder()
+                .listId(listId)
+                .title(title)
+                .recurrenceType(request.getRecurrenceType())
+                .intervalDays(request.getRecurrenceType() == RecurrenceType.EveryNdays ? request.getIntervalDays() : null)
+                .weekdaysMask(request.getRecurrenceType() == RecurrenceType.WeeklyByDays ? WeekdaysMask.toMask(request.getWeekdays()) : null)
+                .assignmentType(request.getAssignmentType())
+                .fixedUserId(request.getAssignmentType() == AssignmentType.FixedUser ? request.getFixedUserId() : null)
+                .rrCursor(request.getAssignmentType() == AssignmentType.RoundRobin ? 0 : null)
+                .build();
+
+        task = taskRepository.save(task);
+
+        if (request.getAssignmentType() == AssignmentType.RoundRobin) {
+            for (UUID candidateId : request.getRoundRobinUserIds()) {
+                taskAssignmentCandidateRepository.save(
+                        TaskAssignmentCandidate.builder()
+                                .id(new TaskAssignmentCandidateId(task.getId(), candidateId))
+                                .build()
+                );
+            }
+        }
+
+        if (request.getAssignmentType() == AssignmentType.ByWeekday) {
+            for (var e : request.getWeekdayAssignees().entrySet()) {
+                taskWeekdayAssigneeRepository.save(
+                        TaskWeekdayAssignee.builder()
+                                .id(new TaskWeekdayAssigneeId(task.getId(), e.getKey()))
+                                .userId(e.getValue())
+                                .build()
+                );
+            }
+        }
+
+        return task.getId();
+    }
+
+    private void validateCreateTaskRecurrence(CreateTaskRequest request) {
+        if (request.getRecurrenceType() == RecurrenceType.EveryNdays) {
+            if (request.getIntervalDays() == null) {
+                throw new IllegalArgumentException("Для EveryNdays нужно указать intervalDays");
+            }
+        }
+
+        if (request.getRecurrenceType() == RecurrenceType.WeeklyByDays) {
+            if (request.getWeekdays() == null || request.getWeekdays().isEmpty()) {
+                throw new IllegalArgumentException("Для WeeklyByDays нужно указать weekdays");
+            }
+        }
+    }
+
+    private void validateCreateTaskAssignment(CreateTaskRequest request, UUID listId) {
+        if (request.getAssignmentType() == AssignmentType.FixedUser) {
+            if (request.getFixedUserId() == null) {
+                throw new IllegalArgumentException("Для FixedUser нужно указать fixedUserId");
+            }
+            assertUserIsMember(listId, request.getFixedUserId());
+        }
+
+        if (request.getAssignmentType() == AssignmentType.RoundRobin) {
+            var ids = request.getRoundRobinUserIds();
+            if (ids == null || ids.isEmpty()) {
+                throw new IllegalArgumentException("Для RoundRobin нужно указать roundRobinUserIds");
+            }
+            var unique = new LinkedHashSet<>(ids);
+            if (unique.size() != ids.size()) {
+                throw new IllegalArgumentException("roundRobinUserIds содержит дубликаты");
+            }
+            for (UUID id : unique) {
+                assertUserIsMember(listId, id);
+            }
+        }
+
+        if (request.getAssignmentType() == AssignmentType.ByWeekday) {
+            var map = request.getWeekdayAssignees();
+            if (map == null || map.isEmpty()) {
+                throw new IllegalArgumentException("Для ByWeekday нужно указать weekdayAssignees");
+            }
+            if (map.size() != 7) {
+                throw new IllegalArgumentException("weekdayAssignees должен содержать все 7 дней");
+            }
+            for (int d = 0; d <= 6; d++) {
+                if (!map.containsKey(d) || map.get(d) == null) {
+                    throw new IllegalArgumentException("weekdayAssignees должен содержать ключи 0..6");
+                }
+                assertUserIsMember(listId, map.get(d));
+            }
+        }
+    }
+
+    private void assertUserIsMember(UUID listId, UUID userId) {
+        if (!listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
+            throw new IllegalArgumentException("Выбранный пользователь не состоит в этом списке дел");
+        }
     }
 
     private String resolveLogin(UUID userId) {

@@ -10,31 +10,31 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
+import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
-import ru.vladmikhayl.task_management.entity.ListInvite;
-import ru.vladmikhayl.task_management.entity.ListMember;
-import ru.vladmikhayl.task_management.entity.ListMemberId;
-import ru.vladmikhayl.task_management.entity.TodoList;
+import ru.vladmikhayl.task_management.entity.*;
+import ru.vladmikhayl.task_management.entity.task.Task;
+import ru.vladmikhayl.task_management.entity.task.TaskAssignmentCandidate;
+import ru.vladmikhayl.task_management.entity.task.TaskWeekdayAssignee;
 import ru.vladmikhayl.task_management.feign.IdentityClient;
-import ru.vladmikhayl.task_management.repository.ListInviteRepository;
-import ru.vladmikhayl.task_management.repository.ListMemberRepository;
-import ru.vladmikhayl.task_management.repository.TodoListRepository;
+import ru.vladmikhayl.task_management.repository.*;
 import ru.vladmikhayl.task_management.dto.response.TodoListMemberResponse;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class TaskManagementServiceTest {
+    private static final UUID LIST_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    private static final UUID USER_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
     @Mock
     private TodoListRepository todoListRepository;
 
@@ -43,6 +43,15 @@ public class TaskManagementServiceTest {
 
     @Mock
     private ListInviteRepository listInviteRepository;
+
+    @Mock
+    private TaskRepository taskRepository;
+
+    @Mock
+    private TaskAssignmentCandidateRepository taskAssignmentCandidateRepository;
+
+    @Mock
+    private TaskWeekdayAssigneeRepository taskWeekdayAssigneeRepository;
 
     @Mock
     private IdentityClient identityClient;
@@ -495,5 +504,482 @@ public class TaskManagementServiceTest {
         assertThatThrownBy(() -> taskManagementService.getListDetails(userId, listId))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Список дел не найден");
+    }
+
+    @Test
+    void createTask_listNotFound_throwsNotFound() {
+        stubListNotFound(LIST_ID);
+
+        var req = baseRequest().build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Список дел не найден");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_userNotMember_throwsForbidden() {
+        stubListExists(LIST_ID);
+        stubUserIsNotMember(LIST_ID, USER_ID);
+
+        var req = baseRequest().build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Вы не состоите в этом списке дел");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_titleAlreadyExists_throwsConflict_andDoesNotSaveAnything() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        String trimmed = "Вынести мусор";
+        stubTitleExists(LIST_ID, trimmed);
+
+        var req = baseRequest().build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessage("В этом списке уже есть задача с таким названием");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_recurrenceEveryNdays_intervalDaysNull_throwsBadRequest() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        var req = baseRequest()
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(null)
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Для EveryNdays нужно указать intervalDays");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_recurrenceWeeklyByDays_weekdaysNull_throwsBadRequest() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        var req = baseRequest()
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdays(null)
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Для WeeklyByDays нужно указать weekdays");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_recurrenceWeeklyByDays_weekdaysEmpty_throwsBadRequest() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        var req = baseRequest()
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdays(Set.of())
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Для WeeklyByDays нужно указать weekdays");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_assignmentFixedUser_fixedUserIdNull_throwsBadRequest() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        var req = baseRequest()
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(null)
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Для FixedUser нужно указать fixedUserId");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_assignmentFixedUser_fixedUserNotMember_throwsBadRequest() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        UUID fixed = UUID.randomUUID();
+        stubUserIsNotMember(LIST_ID, fixed);
+
+        var req = baseRequest()
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(fixed)
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Выбранный пользователь не состоит в этом списке дел");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_assignmentRoundRobin_idsNull_throwsBadRequest() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        var req = baseRequest()
+                .assignmentType(AssignmentType.RoundRobin)
+                .roundRobinUserIds(null)
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Для RoundRobin нужно указать roundRobinUserIds");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_assignmentRoundRobin_hasDuplicates_throwsBadRequest() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        UUID u = UUID.randomUUID();
+
+        var req = baseRequest()
+                .assignmentType(AssignmentType.RoundRobin)
+                .roundRobinUserIds(List.of(u, u))
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("roundRobinUserIds содержит дубликаты");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_assignmentRoundRobin_candidateNotMember_throwsBadRequest() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        UUID c1 = UUID.randomUUID();
+        UUID c2 = UUID.randomUUID();
+
+        stubUserIsMember(LIST_ID, c1);
+        stubUserIsNotMember(LIST_ID, c2);
+
+        var req = baseRequest()
+                .assignmentType(AssignmentType.RoundRobin)
+                .roundRobinUserIds(List.of(c1, c2))
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Выбранный пользователь не состоит в этом списке дел");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_assignmentByWeekday_mapNull_throwsBadRequest() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        var req = baseRequest()
+                .assignmentType(AssignmentType.ByWeekday)
+                .weekdayAssignees(null)
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Для ByWeekday нужно указать weekdayAssignees");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_assignmentByWeekday_missingKey_throwsBadRequest() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        UUID u0 = UUID.randomUUID();
+        UUID u1 = UUID.randomUUID();
+
+        Map<Integer, UUID> map = allWeekdayAssignees(u0, u1);
+        map.remove(3); // дырка
+
+        var req = baseRequest()
+                .assignmentType(AssignmentType.ByWeekday)
+                .weekdayAssignees(map)
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("weekdayAssignees должен содержать все 7 дней");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_assignmentByWeekday_assigneeNotMember_throwsBadRequest() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        UUID member = UUID.randomUUID();
+        UUID notMember = UUID.randomUUID();
+
+        stubUserIsMember(LIST_ID, member);
+        stubUserIsNotMember(LIST_ID, notMember);
+
+        // сделаем так, чтобы в одном дне был не-мембер
+        Map<Integer, UUID> map = allWeekdayAssignees(member, member);
+        map.put(5, notMember);
+
+        var req = baseRequest()
+                .assignmentType(AssignmentType.ByWeekday)
+                .weekdayAssignees(map)
+                .build();
+
+        assertThatThrownBy(() -> taskManagementService.createTask(USER_ID, LIST_ID, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Выбранный пользователь не состоит в этом списке дел");
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTask_success_fixedUser_weeklyByDays() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        UUID fixed = UUID.randomUUID();
+        stubUserIsMember(LIST_ID, fixed);
+
+        UUID savedTaskId = UUID.randomUUID();
+        stubTaskSavedWithId(savedTaskId);
+
+        var req = CreateTaskRequest.builder()
+                .title("  Вынести мусор  ")
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdays(days(0, 2, 4))
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(fixed)
+                .build();
+
+        UUID id = taskManagementService.createTask(USER_ID, LIST_ID, req);
+
+        assertThat(id).isEqualTo(savedTaskId);
+
+        ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(captor.capture());
+        Task saved = captor.getValue();
+
+        assertThat(saved.getListId()).isEqualTo(LIST_ID);
+        assertThat(saved.getTitle()).isEqualTo("Вынести мусор");
+        assertThat(saved.getRecurrenceType()).isEqualTo(RecurrenceType.WeeklyByDays);
+        assertThat(saved.getIntervalDays()).isNull();
+        assertThat(saved.getWeekdaysMask()).isEqualTo(WeekdaysMask.toMask(Set.of(0, 2, 4)));
+        assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.FixedUser);
+        assertThat(saved.getFixedUserId()).isEqualTo(fixed);
+        assertThat(saved.getRrCursor()).isNull();
+
+        verifyNoInteractions(taskAssignmentCandidateRepository);
+        verifyNoInteractions(taskWeekdayAssigneeRepository);
+    }
+
+    @Test
+    void createTask_success_roundRobin_everyNdays() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        UUID c1 = UUID.randomUUID();
+        UUID c2 = UUID.randomUUID();
+        stubUserIsMember(LIST_ID, c1);
+        stubUserIsMember(LIST_ID, c2);
+
+        UUID savedTaskId = UUID.randomUUID();
+        stubTaskSavedWithId(savedTaskId);
+
+        var req = CreateTaskRequest.builder()
+                .title("Вынести мусор")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(5)
+                .assignmentType(AssignmentType.RoundRobin)
+                .roundRobinUserIds(List.of(c1, c2))
+                .build();
+
+        UUID id = taskManagementService.createTask(USER_ID, LIST_ID, req);
+
+        assertThat(id).isEqualTo(savedTaskId);
+
+        ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(taskCaptor.capture());
+        Task saved = taskCaptor.getValue();
+
+        assertThat(saved.getListId()).isEqualTo(LIST_ID);
+        assertThat(saved.getTitle()).isEqualTo("Вынести мусор");
+        assertThat(saved.getRecurrenceType()).isEqualTo(RecurrenceType.EveryNdays);
+        assertThat(saved.getIntervalDays()).isEqualTo(5);
+        assertThat(saved.getWeekdaysMask()).isNull();
+        assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.RoundRobin);
+        assertThat(saved.getRrCursor()).isEqualTo(0);
+        assertThat(saved.getFixedUserId()).isNull();
+
+        ArgumentCaptor<TaskAssignmentCandidate> cCaptor = ArgumentCaptor.forClass(TaskAssignmentCandidate.class);
+        verify(taskAssignmentCandidateRepository, times(2)).save(cCaptor.capture());
+
+        assertThat(cCaptor.getAllValues())
+                .extracting(x -> x.getId().getTaskId(), x -> x.getId().getUserId())
+                .containsExactlyInAnyOrder(
+                        tuple(savedTaskId, c1),
+                        tuple(savedTaskId, c2)
+                );
+
+        verifyNoInteractions(taskWeekdayAssigneeRepository);
+    }
+
+    @Test
+    void createTask_success_byWeekday_weeklyByDays() {
+        stubListExists(LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+        stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        UUID u0 = UUID.randomUUID();
+        UUID u1 = UUID.randomUUID();
+        stubUserIsMember(LIST_ID, u0);
+        stubUserIsMember(LIST_ID, u1);
+
+        UUID savedTaskId = UUID.randomUUID();
+        stubTaskSavedWithId(savedTaskId);
+
+        Map<Integer, UUID> map = allWeekdayAssignees(u0, u1);
+
+        var req = CreateTaskRequest.builder()
+                .title("Вынести мусор")
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdays(days(0, 1, 2, 3, 4, 5))
+                .assignmentType(AssignmentType.ByWeekday)
+                .weekdayAssignees(map)
+                .build();
+
+        UUID id = taskManagementService.createTask(USER_ID, LIST_ID, req);
+
+        assertThat(id).isEqualTo(savedTaskId);
+
+        ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(taskCaptor.capture());
+        Task saved = taskCaptor.getValue();
+
+        assertThat(saved.getListId()).isEqualTo(LIST_ID);
+        assertThat(saved.getTitle()).isEqualTo("Вынести мусор");
+        assertThat(saved.getRecurrenceType()).isEqualTo(RecurrenceType.WeeklyByDays);
+        assertThat(saved.getIntervalDays()).isNull();
+        assertThat(saved.getWeekdaysMask()).isEqualTo(WeekdaysMask.toMask(Set.of(0, 1, 2, 3, 4, 5)));
+        assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.ByWeekday);
+        assertThat(saved.getRrCursor()).isNull();
+        assertThat(saved.getFixedUserId()).isNull();
+
+        verify(taskWeekdayAssigneeRepository, times(7)).save(any(TaskWeekdayAssignee.class));
+
+        ArgumentCaptor<TaskWeekdayAssignee> aCaptor = ArgumentCaptor.forClass(TaskWeekdayAssignee.class);
+        verify(taskWeekdayAssigneeRepository, times(7)).save(aCaptor.capture());
+
+        assertThat(aCaptor.getAllValues())
+                .extracting(x -> x.getId().getTaskId(), x -> x.getId().getWeekday(), TaskWeekdayAssignee::getUserId)
+                .containsExactlyInAnyOrder(
+                        tuple(savedTaskId, 0, map.get(0)),
+                        tuple(savedTaskId, 1, map.get(1)),
+                        tuple(savedTaskId, 2, map.get(2)),
+                        tuple(savedTaskId, 3, map.get(3)),
+                        tuple(savedTaskId, 4, map.get(4)),
+                        tuple(savedTaskId, 5, map.get(5)),
+                        tuple(savedTaskId, 6, map.get(6))
+                );
+
+        verifyNoInteractions(taskAssignmentCandidateRepository);
+    }
+
+    private void stubListExists(UUID listId) {
+        when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).build()));
+    }
+
+    private void stubListNotFound(UUID listId) {
+        when(todoListRepository.findById(listId)).thenReturn(Optional.empty());
+    }
+
+    private void stubUserIsMember(UUID listId, UUID userId) {
+        when(listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)).thenReturn(true);
+    }
+
+    private void stubUserIsNotMember(UUID listId, UUID userId) {
+        when(listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)).thenReturn(false);
+    }
+
+    private void stubTitleNotExists(UUID listId, String titleTrimmed) {
+        when(taskRepository.existsByListIdAndTitleIgnoreCase(listId, titleTrimmed)).thenReturn(false);
+    }
+
+    private void stubTitleExists(UUID listId, String titleTrimmed) {
+        when(taskRepository.existsByListIdAndTitleIgnoreCase(listId, titleTrimmed)).thenReturn(true);
+    }
+
+    private void stubTaskSavedWithId(UUID savedTaskId) {
+        when(taskRepository.save(any(Task.class)))
+                .thenAnswer(inv -> {
+                    Task t = inv.getArgument(0);
+                    t.setId(savedTaskId);
+                    return t;
+                });
+    }
+
+    private CreateTaskRequest.CreateTaskRequestBuilder baseRequest() {
+        return CreateTaskRequest.builder()
+                .title("  Вынести мусор  ")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc"));
+    }
+
+    private static Map<Integer, UUID> allWeekdayAssignees(UUID u0, UUID u1) {
+        Map<Integer, UUID> m = new LinkedHashMap<>();
+        for (int d = 0; d <= 6; d++) {
+            m.put(d, (d % 2 == 0) ? u0 : u1);
+        }
+        return m;
+    }
+
+    private static Set<Integer> days(Integer... days) {
+        return new LinkedHashSet<>(Arrays.asList(days));
     }
 }
