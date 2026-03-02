@@ -39,7 +39,7 @@ spring:
         - id: task-management
           uri: lb://TASK-MANAGEMENT
           predicates:
-            - Path=/api/v1/lists/**,/api/v1/invites/**
+            - Path=/api/v1/lists/**,/api/v1/invites/**,/api/v1/tasks/**
 
         - id: task-management-openapi
           uri: lb://TASK-MANAGEMENT
