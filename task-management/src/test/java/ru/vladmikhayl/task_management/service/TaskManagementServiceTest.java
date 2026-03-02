@@ -54,6 +54,9 @@ public class TaskManagementServiceTest {
     private TaskWeekdayAssigneeRepository taskWeekdayAssigneeRepository;
 
     @Mock
+    private TaskCompletionRepository taskCompletionRepository;
+
+    @Mock
     private IdentityClient identityClient;
 
     @Mock
@@ -1283,6 +1286,53 @@ public class TaskManagementServiceTest {
         verify(taskAssignmentCandidateRepository, never()).save(any());
     }
 
+    @Test
+    void deleteTask_taskNotFound_throwsNotFound() {
+        UUID taskId = UUID.randomUUID();
+        stubTaskNotFound(taskId);
+
+        assertThatThrownBy(() -> taskManagementService.deleteTask(USER_ID, taskId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Задача не найдена");
+
+        verifyNoInteractions(taskAssignmentCandidateRepository);
+        verifyNoInteractions(taskWeekdayAssigneeRepository);
+        verifyNoInteractions(taskCompletionRepository);
+        verify(taskRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteTask_userNotMember_throwsForbidden() {
+        UUID taskId = UUID.randomUUID();
+        stubTaskFound(taskId, LIST_ID);
+
+        stubUserIsNotMember(LIST_ID, USER_ID);
+
+        assertThatThrownBy(() -> taskManagementService.deleteTask(USER_ID, taskId))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Вы не состоите в этом списке дел");
+
+        verify(taskAssignmentCandidateRepository, never()).deleteAllById_TaskId(any());
+        verify(taskWeekdayAssigneeRepository, never()).deleteAllById_TaskId(any());
+        verify(taskCompletionRepository, never()).deleteAllById_TaskId(any());
+        verify(taskRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteTask_success() {
+        UUID taskId = UUID.randomUUID();
+        stubTaskFound(taskId, LIST_ID);
+
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        taskManagementService.deleteTask(USER_ID, taskId);
+
+        verify(taskAssignmentCandidateRepository).deleteAllById_TaskId(taskId);
+        verify(taskWeekdayAssigneeRepository).deleteAllById_TaskId(taskId);
+        verify(taskCompletionRepository).deleteAllById_TaskId(taskId);
+        verify(taskRepository).deleteById(taskId);
+    }
+
     private void stubListExists(UUID listId) {
         when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).build()));
     }
@@ -1316,15 +1366,6 @@ public class TaskManagementServiceTest {
                 });
     }
 
-    private CreateTaskRequest.CreateTaskRequestBuilder baseRequest() {
-        return CreateTaskRequest.builder()
-                .title("  Вынести мусор  ")
-                .recurrenceType(RecurrenceType.EveryNdays)
-                .intervalDays(3)
-                .assignmentType(AssignmentType.FixedUser)
-                .fixedUserId(UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc"));
-    }
-
     private static Map<Integer, UUID> allWeekdayAssignees(UUID u0, UUID u1) {
         Map<Integer, UUID> m = new LinkedHashMap<>();
         for (int d = 0; d <= 6; d++) {
@@ -1355,6 +1396,15 @@ public class TaskManagementServiceTest {
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(t));
         return t;
+    }
+
+    private CreateTaskRequest.CreateTaskRequestBuilder baseRequest() {
+        return CreateTaskRequest.builder()
+                .title("  Вынести мусор  ")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc"));
     }
 
     private UpdateAssignmentRuleRequest.UpdateAssignmentRuleRequestBuilder baseUpdateReq() {

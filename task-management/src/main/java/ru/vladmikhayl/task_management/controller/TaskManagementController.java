@@ -149,4 +149,19 @@ public class TaskManagementController {
         taskManagementService.updateAssignmentRule(userId, taskId, request);
         return ResponseEntity.ok().build();
     }
+
+    @DeleteMapping("/tasks/{taskId}")
+    @Operation(summary = "Удалить задачу")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Задача удалена"),
+            @ApiResponse(responseCode = "403", description = "Пользователь не состоит в списке", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Задача не найдена", content = @Content)
+    })
+    public ResponseEntity<Void> deleteTask(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @PathVariable UUID taskId
+    ) {
+        taskManagementService.deleteTask(userId, taskId);
+        return ResponseEntity.ok().build();
+    }
 }

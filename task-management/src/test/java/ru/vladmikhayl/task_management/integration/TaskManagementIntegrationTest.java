@@ -438,6 +438,61 @@ public class TaskManagementIntegrationTest {
         assertThat(nodeAfter.get("rrCursor").isNull()).isTrue();
     }
 
+    @Test
+    void deleteTaskFlow() throws Exception {
+        UUID owner = UUID.randomUUID();
+        UUID userB = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("owner_login"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB_login"));
+
+        createListAndExpect201(owner, "Домашние дела");
+        String listId = getListsAndExpect200_AndGetFirstListId(owner);
+
+        String token = createInviteAndExpect201(owner, listId);
+        acceptInviteAndExpect200(userB, token);
+
+        CreateTaskRequest rrReq = CreateTaskRequest.builder()
+                .title("Покупки")
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdays(Set.of(0, 2, 4))
+                .assignmentType(AssignmentType.RoundRobin)
+                .roundRobinUserIds(List.of(owner, userB))
+                .build();
+
+        String rrTaskId = createTaskAndExpect201_AndGetId(owner, listId, rrReq);
+
+        CreateTaskRequest fixedReq = CreateTaskRequest.builder()
+                .title("Вынести мусор")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(owner)
+                .build();
+
+        String fixedTaskId = createTaskAndExpect201_AndGetId(userB, listId, fixedReq);
+
+        var tasksBefore = getTasksAndExpect200_GetJson(owner, listId);
+
+        assertThat(tasksBefore.isArray()).isTrue();
+        assertThat(tasksBefore.size()).isEqualTo(2);
+        assertThat(findTaskById(tasksBefore, rrTaskId).get("title").asText()).isEqualTo("Покупки");
+        assertThat(findTaskById(tasksBefore, fixedTaskId).get("title").asText()).isEqualTo("Вынести мусор");
+
+        mockMvc.perform(delete("/api/v1/tasks/{taskId}", rrTaskId)
+                        .header("X-User-Id", userB.toString()))
+                .andExpect(status().isOk());
+
+        var tasksAfter = getTasksAndExpect200_GetJson(owner, listId);
+
+        assertThat(tasksAfter.isArray()).isTrue();
+        assertThat(tasksAfter.size()).isEqualTo(1);
+
+        var remaining = tasksAfter.get(0);
+        assertThat(remaining.get("id").asText()).isEqualTo(fixedTaskId);
+        assertThat(remaining.get("title").asText()).isEqualTo("Вынести мусор");
+    }
+
     private ResultActions getListsAndExpect200(UUID userId) throws Exception {
         return mockMvc.perform(get("/api/v1/lists")
                 .header("X-User-Id", userId.toString()))

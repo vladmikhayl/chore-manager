@@ -31,6 +31,7 @@ public class TaskManagementService {
     private final TaskRepository taskRepository;
     private final TaskAssignmentCandidateRepository taskAssignmentCandidateRepository;
     private final TaskWeekdayAssigneeRepository taskWeekdayAssigneeRepository;
+    private final TaskCompletionRepository taskCompletionRepository;
 
     private final IdentityClient identityClient;
 
@@ -355,6 +356,24 @@ public class TaskManagementService {
         }
 
         taskRepository.save(task);
+    }
+
+    @Transactional
+    public void deleteTask(UUID userId, UUID taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Задача не найдена"));
+
+        UUID listId = task.getListId();
+
+        if (!listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Вы не состоите в этом списке дел");
+        }
+
+        taskAssignmentCandidateRepository.deleteAllById_TaskId(taskId);
+        taskWeekdayAssigneeRepository.deleteAllById_TaskId(taskId);
+        taskCompletionRepository.deleteAllById_TaskId(taskId);
+
+        taskRepository.deleteById(taskId);
     }
 
     private void validateTaskRecurrenceRule(CreateTaskRequest request) {
