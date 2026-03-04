@@ -493,6 +493,76 @@ public class TaskManagementIntegrationTest {
         assertThat(remaining.get("title").asText()).isEqualTo("Вынести мусор");
     }
 
+    @Test
+    void leaveListFlow_userLeavesSuccessfully() throws Exception {
+        UUID owner = UUID.randomUUID();
+        UUID userB = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("owner_login"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB_login"));
+
+        createListAndExpect201(owner, "Домашние дела");
+        String listId = getListsAndExpect200_AndGetFirstListId(owner);
+
+        String token = createInviteAndExpect201(owner, listId);
+        acceptInviteAndExpect200(userB, token);
+
+        getListsAndExpect200_AndExpectListsSize(userB, 1);
+
+        CreateTaskRequest fixedReq = CreateTaskRequest.builder()
+                .title("Вынести мусор")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(owner)
+                .build();
+
+        createTaskAndExpect201_AndGetId(owner, listId, fixedReq);
+
+        mockMvc.perform(delete("/api/v1/lists/{listId}/members/me", listId)
+                        .header("X-User-Id", userB.toString()))
+                .andExpect(status().isOk());
+
+        getListsAndExpect200_AndExpectListsSize(userB, 0);
+
+        getListsAndExpect200_AndExpectListsSize(owner, 1);
+    }
+
+    @Test
+    void leaveListFlow_userParticipates_cannotLeave() throws Exception {
+        UUID owner = UUID.randomUUID();
+        UUID userB = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("owner_login"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB_login"));
+
+        createListAndExpect201(owner, "Домашние дела");
+        String listId = getListsAndExpect200_AndGetFirstListId(owner);
+
+        String token = createInviteAndExpect201(owner, listId);
+        acceptInviteAndExpect200(userB, token);
+
+        getListsAndExpect200_AndExpectListsSize(userB, 1);
+
+        CreateTaskRequest rrReq = CreateTaskRequest.builder()
+                .title("Покупки")
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdays(Set.of(0, 2, 4))
+                .assignmentType(AssignmentType.RoundRobin)
+                .roundRobinUserIds(List.of(owner, userB))
+                .build();
+
+        createTaskAndExpect201_AndGetId(owner, listId, rrReq);
+
+        mockMvc.perform(delete("/api/v1/lists/{listId}/members/me", listId)
+                        .header("X-User-Id", userB.toString()))
+                .andExpect(status().isForbidden());
+
+        getListsAndExpect200_AndExpectListsSize(userB, 1);
+
+        getListsAndExpect200_AndExpectListsSize(owner, 1);
+    }
+
     private ResultActions getListsAndExpect200(UUID userId) throws Exception {
         return mockMvc.perform(get("/api/v1/lists")
                 .header("X-User-Id", userId.toString()))

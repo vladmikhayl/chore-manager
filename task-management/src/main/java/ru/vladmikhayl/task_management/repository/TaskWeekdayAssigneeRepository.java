@@ -11,4 +11,6 @@ public interface TaskWeekdayAssigneeRepository extends JpaRepository<TaskWeekday
     List<TaskWeekdayAssignee> findAllById_TaskId(UUID taskId);
 
     void deleteAllById_TaskId(UUID taskId);
+
+    boolean existsById_TaskIdInAndUserId(List<UUID> taskIds, UUID userId);
 }

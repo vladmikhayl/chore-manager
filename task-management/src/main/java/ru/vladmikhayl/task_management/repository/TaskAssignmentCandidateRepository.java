@@ -11,4 +11,6 @@ public interface TaskAssignmentCandidateRepository extends JpaRepository<TaskAss
     List<TaskAssignmentCandidate> findAllById_TaskId(UUID taskId);
 
     void deleteAllById_TaskId(UUID taskId);
+
+    boolean existsById_TaskIdInAndId_UserId(List<UUID> taskIds, UUID userId);
 }

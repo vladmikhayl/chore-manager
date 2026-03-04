@@ -376,6 +376,60 @@ public class TaskManagementService {
         taskRepository.deleteById(taskId);
     }
 
+    @Transactional
+    public void leaveList(UUID userId, UUID listId) {
+
+        TodoList list = todoListRepository.findById(listId)
+                .orElseThrow(() -> new EntityNotFoundException("Список не найден"));
+
+        if (!listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Вы не состоите в этом списке");
+        }
+
+        if (list.getOwnerUserId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Вы не можете выйти из списка, так как являетесь его создателем");
+        }
+
+        List<Task> tasks = taskRepository.findAllByListId(listId);
+
+        List<UUID> taskIds = new ArrayList<>();
+        for (Task t : tasks) {
+            taskIds.add(t.getId());
+        }
+
+        if (!taskIds.isEmpty()) {
+
+            // FixedUser
+            boolean usedAsFixedUser =
+                    taskRepository.existsByListIdAndAssignmentTypeAndFixedUserId(listId, AssignmentType.FixedUser, userId);
+
+            if (usedAsFixedUser) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "Нельзя выйти из списка, участвуя в правилах распределения в задачах списка");
+            }
+
+            // RoundRobin
+            boolean usedInRR =
+                    taskAssignmentCandidateRepository.existsById_TaskIdInAndId_UserId(taskIds, userId);
+
+            if (usedInRR) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "Нельзя выйти из списка, участвуя в правилах распределения в задачах списка");
+            }
+
+            // WeeklyByDays
+            boolean usedInWeekday =
+                    taskWeekdayAssigneeRepository.existsById_TaskIdInAndUserId(taskIds, userId);
+
+            if (usedInWeekday) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "Нельзя выйти из списка, участвуя в правилах распределения в задачах списка");
+            }
+        }
+
+        listMemberRepository.deleteById(new ListMemberId(listId, userId));
+    }
+
     private void validateTaskRecurrenceRule(CreateTaskRequest request) {
         if (request.getRecurrenceType() == RecurrenceType.EveryNdays) {
             if (request.getIntervalDays() == null) {

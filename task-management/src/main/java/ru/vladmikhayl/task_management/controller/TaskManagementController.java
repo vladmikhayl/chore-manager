@@ -164,4 +164,19 @@ public class TaskManagementController {
         taskManagementService.deleteTask(userId, taskId);
         return ResponseEntity.ok().build();
     }
+
+    @DeleteMapping("/lists/{listId}/members/me")
+    @Operation(summary = "Выйти из списка дел")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Успешно"),
+            @ApiResponse(responseCode = "403", description = "Нельзя выйти из списка", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Список не найден", content = @Content)
+    })
+    public ResponseEntity<Void> leaveList(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @PathVariable UUID listId
+    ) {
+        taskManagementService.leaveList(userId, listId);
+        return ResponseEntity.ok().build();
+    }
 }

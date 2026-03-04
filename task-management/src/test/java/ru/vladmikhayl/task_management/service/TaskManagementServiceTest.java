@@ -1333,6 +1333,166 @@ public class TaskManagementServiceTest {
         verify(taskRepository).deleteById(taskId);
     }
 
+    @Test
+    void leaveList_listNotFound_throwsNotFound() {
+        stubListNotFound(LIST_ID);
+
+        assertThatThrownBy(() ->
+                taskManagementService.leaveList(USER_ID, LIST_ID))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Список не найден");
+
+        verifyNoInteractions(listMemberRepository);
+    }
+
+    @Test
+    void leaveList_userNotMember_throwsForbidden() {
+        stubListExists(LIST_ID);
+        stubUserIsNotMember(LIST_ID, USER_ID);
+
+        assertThatThrownBy(() ->
+                taskManagementService.leaveList(USER_ID, LIST_ID))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Вы не состоите в этом списке");
+
+        verify(listMemberRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void leaveList_userIsOwner_throwsForbidden() {
+        when(todoListRepository.findById(LIST_ID))
+                .thenReturn(Optional.of(
+                        TodoList.builder()
+                                .id(LIST_ID)
+                                .ownerUserId(USER_ID)
+                                .build()
+                ));
+
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        assertThatThrownBy(() ->
+                taskManagementService.leaveList(USER_ID, LIST_ID))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Вы не можете выйти из списка, так как являетесь его создателем");
+
+        verify(listMemberRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void leaveList_usedAsFixedUser_throwsForbidden() {
+        when(todoListRepository.findById(LIST_ID))
+                .thenReturn(Optional.of(
+                        TodoList.builder()
+                                .id(LIST_ID)
+                                .ownerUserId(UUID.randomUUID())
+                                .build()
+                ));
+
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        when(taskRepository.findAllByListId(LIST_ID))
+                .thenReturn(List.of(Task.builder().id(UUID.randomUUID()).build()));
+
+        when(taskRepository.existsByListIdAndAssignmentTypeAndFixedUserId(LIST_ID, AssignmentType.FixedUser, USER_ID))
+                .thenReturn(true);
+
+        assertThatThrownBy(() ->
+                taskManagementService.leaveList(USER_ID, LIST_ID))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("участвуя в правилах");
+
+        verify(listMemberRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void leaveList_usedInRoundRobin_throwsForbidden() {
+        when(todoListRepository.findById(LIST_ID))
+                .thenReturn(Optional.of(
+                        TodoList.builder()
+                                .id(LIST_ID)
+                                .ownerUserId(UUID.randomUUID())
+                                .build()
+                ));
+
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        UUID taskId = UUID.randomUUID();
+
+        when(taskRepository.findAllByListId(LIST_ID))
+                .thenReturn(List.of(Task.builder().id(taskId).build()));
+
+        when(taskRepository.existsByListIdAndAssignmentTypeAndFixedUserId(LIST_ID, AssignmentType.FixedUser, USER_ID))
+                .thenReturn(false);
+
+        when(taskAssignmentCandidateRepository
+                .existsById_TaskIdInAndId_UserId(List.of(taskId), USER_ID))
+                .thenReturn(true);
+
+        assertThatThrownBy(() ->
+                taskManagementService.leaveList(USER_ID, LIST_ID))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("участвуя в правилах");
+
+        verify(listMemberRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void leaveList_usedInWeekday_throwsForbidden() {
+        when(todoListRepository.findById(LIST_ID))
+                .thenReturn(Optional.of(
+                        TodoList.builder()
+                                .id(LIST_ID)
+                                .ownerUserId(UUID.randomUUID())
+                                .build()
+                ));
+
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        UUID taskId = UUID.randomUUID();
+
+        when(taskRepository.findAllByListId(LIST_ID))
+                .thenReturn(List.of(Task.builder().id(taskId).build()));
+
+        when(taskRepository.existsByListIdAndAssignmentTypeAndFixedUserId(LIST_ID, AssignmentType.FixedUser, USER_ID))
+                .thenReturn(false);
+
+        when(taskAssignmentCandidateRepository
+                .existsById_TaskIdInAndId_UserId(List.of(taskId), USER_ID))
+                .thenReturn(false);
+
+        when(taskWeekdayAssigneeRepository
+                .existsById_TaskIdInAndUserId(List.of(taskId), USER_ID))
+                .thenReturn(true);
+
+        assertThatThrownBy(() ->
+                taskManagementService.leaveList(USER_ID, LIST_ID))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("участвуя в правилах");
+
+        verify(listMemberRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void leaveList_success() {
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        when(todoListRepository.findById(LIST_ID))
+                .thenReturn(Optional.of(
+                        TodoList.builder()
+                                .id(LIST_ID)
+                                .ownerUserId(UUID.randomUUID())
+                                .build()
+                ));
+
+        when(taskRepository.findAllByListId(LIST_ID))
+                .thenReturn(Collections.emptyList());
+
+        taskManagementService.leaveList(USER_ID, LIST_ID);
+
+        verify(listMemberRepository)
+                .deleteById(new ListMemberId(LIST_ID, USER_ID));
+    }
+
     private void stubListExists(UUID listId) {
         when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).build()));
     }
