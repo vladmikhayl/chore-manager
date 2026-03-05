@@ -21,6 +21,7 @@ import ru.vladmikhayl.task_management.dto.response.TodoListDetailsResponse;
 import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
 import ru.vladmikhayl.task_management.service.TaskManagementService;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -192,6 +193,22 @@ public class TaskManagementController {
             @PathVariable UUID listId
     ) {
         taskManagementService.deleteList(userId, listId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/tasks/{taskId}/completions/{date}")
+    @Operation(summary = "Отметить задачу выполненной за дату")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Задача отмечена выполненной"),
+            @ApiResponse(responseCode = "403", description = "Пользователь не состоит в списке", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Задача не найдена", content = @Content)
+    })
+    public ResponseEntity<Void> completeTask(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @PathVariable UUID taskId,
+            @PathVariable LocalDate date
+    ) {
+        taskManagementService.completeTask(userId, taskId, date);
         return ResponseEntity.ok().build();
     }
 }

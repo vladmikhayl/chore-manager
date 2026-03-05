@@ -14,6 +14,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @Embeddable
+@EqualsAndHashCode
 public class TaskCompletionId implements Serializable {
     @Column(name = "task_id", nullable = false)
     private UUID taskId;

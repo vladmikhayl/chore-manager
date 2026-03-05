@@ -22,8 +22,7 @@ import ru.vladmikhayl.task_management.feign.IdentityClient;
 import ru.vladmikhayl.task_management.repository.*;
 import ru.vladmikhayl.task_management.dto.response.TodoListMemberResponse;
 
-import java.time.Clock;
-import java.time.Instant;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -1546,6 +1545,103 @@ public class TaskManagementServiceTest {
         verify(taskRepository).deleteAll(any());
         verify(listMemberRepository).deleteAllById_ListId(LIST_ID);
         verify(todoListRepository).deleteById(LIST_ID);
+    }
+
+    @Test
+    void completeTask_taskNotFound_throwsNotFound() {
+        UUID taskId = UUID.randomUUID();
+
+        stubTaskNotFound(taskId);
+
+        assertThatThrownBy(() ->
+                taskManagementService.completeTask(USER_ID, taskId, LocalDate.now()))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Задача не найдена");
+
+        verifyNoInteractions(taskCompletionRepository);
+    }
+
+    @Test
+    void completeTask_userNotMember_throwsForbidden() {
+        UUID taskId = UUID.randomUUID();
+        stubTaskFound(taskId, LIST_ID);
+
+        stubUserIsNotMember(LIST_ID, USER_ID);
+
+        assertThatThrownBy(() ->
+                taskManagementService.completeTask(USER_ID, taskId, LocalDate.now()))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Вы не состоите в этом списке дел");
+
+        verify(taskCompletionRepository, never()).save(any());
+    }
+
+    @Test
+    void completeTask_completionNotExists_createsCompletion() {
+        UUID taskId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 3, 5);
+
+        stubTaskFound(taskId, LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        TaskCompletionId id = new TaskCompletionId(taskId, date);
+
+        when(taskCompletionRepository.findById(id)).thenReturn(Optional.empty());
+
+        Instant now = Instant.parse("2026-03-05T10:15:30Z");
+        when(clock.instant()).thenReturn(now);
+        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+
+        taskManagementService.completeTask(USER_ID, taskId, date);
+
+        ArgumentCaptor<TaskCompletion> captor =
+                ArgumentCaptor.forClass(TaskCompletion.class);
+
+        verify(taskCompletionRepository).save(captor.capture());
+
+        TaskCompletion saved = captor.getValue();
+
+        assertThat(saved.getId()).isEqualTo(id);
+        assertThat(saved.getCompletedByUserId()).isEqualTo(USER_ID);
+        assertThat(saved.getCompletedAt())
+                .isEqualTo(LocalDateTime.ofInstant(now, ZoneOffset.UTC));
+    }
+
+    @Test
+    void completeTask_completionExists_updatesCompletion() {
+        UUID taskId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 3, 5);
+
+        stubTaskFound(taskId, LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        TaskCompletionId id = new TaskCompletionId(taskId, date);
+
+        TaskCompletion existing = new TaskCompletion();
+        existing.setId(id);
+        existing.setCompletedByUserId(UUID.randomUUID());
+        existing.setCompletedAt(LocalDateTime.now().minusDays(1));
+
+        when(taskCompletionRepository.findById(id))
+                .thenReturn(Optional.of(existing));
+
+        Instant now = Instant.parse("2026-03-05T12:00:00Z");
+        when(clock.instant()).thenReturn(now);
+        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+
+        taskManagementService.completeTask(USER_ID, taskId, date);
+
+        ArgumentCaptor<TaskCompletion> captor =
+                ArgumentCaptor.forClass(TaskCompletion.class);
+
+        verify(taskCompletionRepository).save(captor.capture());
+
+        TaskCompletion saved = captor.getValue();
+
+        assertThat(saved).isSameAs(existing);
+        assertThat(saved.getCompletedByUserId()).isEqualTo(USER_ID);
+        assertThat(saved.getCompletedAt())
+                .isEqualTo(LocalDateTime.ofInstant(now, ZoneOffset.UTC));
     }
 
     private void stubListExists(UUID listId) {

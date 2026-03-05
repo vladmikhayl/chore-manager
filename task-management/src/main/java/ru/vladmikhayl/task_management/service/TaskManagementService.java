@@ -19,6 +19,8 @@ import ru.vladmikhayl.task_management.repository.*;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -453,6 +455,32 @@ public class TaskManagementService {
         taskRepository.deleteAll(tasks);
         listMemberRepository.deleteAllById_ListId(listId);
         todoListRepository.deleteById(listId);
+    }
+
+    @Transactional
+    public void completeTask(UUID userId, UUID taskId, LocalDate date) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Задача не найдена"));
+
+        UUID listId = task.getListId();
+
+        if (!listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Вы не состоите в этом списке дел");
+        }
+
+        TaskCompletionId id = new TaskCompletionId(taskId, date);
+
+        TaskCompletion completion = taskCompletionRepository.findById(id)
+                .orElseGet(() -> {
+                    TaskCompletion c = new TaskCompletion();
+                    c.setId(id);
+                    return c;
+                });
+
+        completion.setCompletedByUserId(userId);
+        completion.setCompletedAt(LocalDateTime.now(clock));
+
+        taskCompletionRepository.save(completion);
     }
 
     private void validateTaskRecurrenceRule(CreateTaskRequest request) {
