@@ -1493,6 +1493,61 @@ public class TaskManagementServiceTest {
                 .deleteById(new ListMemberId(LIST_ID, USER_ID));
     }
 
+    @Test
+    void deleteList_listNotFound_throws() {
+        stubListNotFound(LIST_ID);
+
+        assertThatThrownBy(() ->
+                taskManagementService.deleteList(USER_ID, LIST_ID))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Список не найден");
+    }
+
+    @Test
+    void deleteList_notOwner_throwsForbidden() {
+
+        TodoList list = TodoList.builder()
+                .id(LIST_ID)
+                .ownerUserId(UUID.randomUUID())
+                .build();
+
+        when(todoListRepository.findById(LIST_ID))
+                .thenReturn(Optional.of(list));
+
+        assertThatThrownBy(() ->
+                taskManagementService.deleteList(USER_ID, LIST_ID))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Удалить список может только создатель");
+    }
+
+    @Test
+    void deleteList_success() {
+
+        TodoList list = TodoList.builder()
+                .id(LIST_ID)
+                .ownerUserId(USER_ID)
+                .build();
+
+        when(todoListRepository.findById(LIST_ID)).thenReturn(Optional.of(list));
+
+        Task t1 = Task.builder().id(UUID.randomUUID()).listId(LIST_ID).build();
+        Task t2 = Task.builder().id(UUID.randomUUID()).listId(LIST_ID).build();
+
+        when(taskRepository.findAllByListId(LIST_ID)).thenReturn(List.of(t1, t2));
+
+        taskManagementService.deleteList(USER_ID, LIST_ID);
+
+        verify(taskAssignmentCandidateRepository).deleteAllById_TaskId(t1.getId());
+        verify(taskAssignmentCandidateRepository).deleteAllById_TaskId(t2.getId());
+        verify(taskWeekdayAssigneeRepository).deleteAllById_TaskId(t1.getId());
+        verify(taskWeekdayAssigneeRepository).deleteAllById_TaskId(t2.getId());
+        verify(taskCompletionRepository).deleteAllById_TaskId(t1.getId());
+        verify(taskCompletionRepository).deleteAllById_TaskId(t2.getId());
+        verify(taskRepository).deleteAll(any());
+        verify(listMemberRepository).deleteAllById_ListId(LIST_ID);
+        verify(todoListRepository).deleteById(LIST_ID);
+    }
+
     private void stubListExists(UUID listId) {
         when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).build()));
     }

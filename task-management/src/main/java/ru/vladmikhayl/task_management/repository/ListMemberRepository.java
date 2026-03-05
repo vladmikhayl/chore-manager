@@ -18,4 +18,6 @@ public interface ListMemberRepository extends JpaRepository<ListMember, ListMemb
     List<ListMember> findAllById_ListId(UUID listId);
 
     Optional<ListMember> findById_ListIdAndId_UserId(UUID listId, UUID userId);
+
+    void deleteAllById_ListId(UUID listId);
 }

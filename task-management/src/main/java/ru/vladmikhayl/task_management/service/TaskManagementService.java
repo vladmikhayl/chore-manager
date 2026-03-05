@@ -430,6 +430,31 @@ public class TaskManagementService {
         listMemberRepository.deleteById(new ListMemberId(listId, userId));
     }
 
+    @Transactional
+    public void deleteList(UUID userId, UUID listId) {
+
+        TodoList list = todoListRepository.findById(listId)
+                .orElseThrow(() -> new EntityNotFoundException("Список не найден"));
+
+        if (!list.getOwnerUserId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Удалить список может только создатель");
+        }
+
+        List<Task> tasks = taskRepository.findAllByListId(listId);
+
+        for (Task task : tasks) {
+            UUID taskId = task.getId();
+
+            taskAssignmentCandidateRepository.deleteAllById_TaskId(taskId);
+            taskWeekdayAssigneeRepository.deleteAllById_TaskId(taskId);
+            taskCompletionRepository.deleteAllById_TaskId(taskId);
+        }
+
+        taskRepository.deleteAll(tasks);
+        listMemberRepository.deleteAllById_ListId(listId);
+        todoListRepository.deleteById(listId);
+    }
+
     private void validateTaskRecurrenceRule(CreateTaskRequest request) {
         if (request.getRecurrenceType() == RecurrenceType.EveryNdays) {
             if (request.getIntervalDays() == null) {

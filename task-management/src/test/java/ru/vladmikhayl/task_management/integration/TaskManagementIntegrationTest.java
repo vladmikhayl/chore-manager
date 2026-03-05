@@ -563,6 +563,56 @@ public class TaskManagementIntegrationTest {
         getListsAndExpect200_AndExpectListsSize(owner, 1);
     }
 
+    @Test
+    void deleteListFlow_ownerDeletesSuccessfully() throws Exception {
+        UUID owner = UUID.randomUUID();
+        UUID userB = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("owner_login"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB_login"));
+
+        createListAndExpect201(owner, "Домашние дела");
+        String listId = getListsAndExpect200_AndGetFirstListId(owner);
+
+        String token = createInviteAndExpect201(owner, listId);
+        acceptInviteAndExpect200(userB, token);
+
+        getListsAndExpect200_AndExpectListsSize(owner, 1);
+        getListsAndExpect200_AndExpectListsSize(userB, 1);
+
+        mockMvc.perform(delete("/api/v1/lists/{listId}", listId)
+                        .header("X-User-Id", owner.toString()))
+                .andExpect(status().isOk());
+
+        getListsAndExpect200_AndExpectListsSize(owner, 0);
+        getListsAndExpect200_AndExpectListsSize(userB, 0);
+    }
+
+    @Test
+    void deleteList_notOwner_throwsForbidden() throws Exception {
+        UUID owner = UUID.randomUUID();
+        UUID userB = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("owner_login"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB_login"));
+
+        createListAndExpect201(owner, "Домашние дела");
+        String listId = getListsAndExpect200_AndGetFirstListId(owner);
+
+        String token = createInviteAndExpect201(owner, listId);
+        acceptInviteAndExpect200(userB, token);
+
+        getListsAndExpect200_AndExpectListsSize(owner, 1);
+        getListsAndExpect200_AndExpectListsSize(userB, 1);
+
+        mockMvc.perform(delete("/api/v1/lists/{listId}", listId)
+                        .header("X-User-Id", userB.toString()))
+                .andExpect(status().isForbidden());
+
+        getListsAndExpect200_AndExpectListsSize(owner, 1);
+        getListsAndExpect200_AndExpectListsSize(userB, 1);
+    }
+
     private ResultActions getListsAndExpect200(UUID userId) throws Exception {
         return mockMvc.perform(get("/api/v1/lists")
                 .header("X-User-Id", userId.toString()))
