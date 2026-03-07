@@ -248,59 +248,9 @@ public class TaskManagementService {
 
         List<Task> tasks = taskRepository.findAllByListIdOrderByTitleAsc(listId);
 
-        List<TaskResponse> result = new ArrayList<>(tasks.size());
-
-        for (Task task : tasks) {
-            TaskResponse.TaskResponseBuilder dto = TaskResponse.builder()
-                    .id(task.getId())
-                    .startDate(task.getStartDate())
-                    .listId(task.getListId())
-                    .title(task.getTitle())
-                    .recurrenceType(task.getRecurrenceType())
-                    .intervalDays(task.getIntervalDays())
-                    .weekdaysMask(task.getWeekdaysMask())
-                    .weekdays(task.getWeekdaysMask() != null ? WeekdaysMask.toSet(task.getWeekdaysMask()) : null)
-                    .assignmentType(task.getAssignmentType())
-                    .fixedUserId(task.getFixedUserId());
-
-            if (task.getAssignmentType() == AssignmentType.RoundRobin) {
-                List<TaskAssignmentCandidate> candidates =
-                        taskAssignmentCandidateRepository.findAllById_TaskIdOrderByPositionAsc(task.getId());
-
-                List<TodoListMemberResponse> users = new ArrayList<>(candidates.size());
-
-                for (TaskAssignmentCandidate c : candidates) {
-                    UUID candidateUserId = c.getId().getUserId();
-
-                    ListMember member = listMemberRepository
-                            .findById_ListIdAndId_UserId(listId, candidateUserId)
-                            .orElseThrow(() -> new EntityNotFoundException("Кандидат RoundRobin не найден среди участников списка"));
-
-                    users.add(TodoListMemberResponse.builder()
-                            .userId(candidateUserId)
-                            .login(member.getLogin())
-                            .build());
-                }
-
-                dto.roundRobinUsers(users);
-            }
-
-            if (task.getAssignmentType() == AssignmentType.ByWeekday) {
-                List<TaskWeekdayAssignee> assignees =
-                        taskWeekdayAssigneeRepository.findAllById_TaskId(task.getId());
-
-                Map<Integer, UUID> map = new LinkedHashMap<>();
-                for (TaskWeekdayAssignee a : assignees) {
-                    map.put(a.getId().getWeekday(), a.getUserId());
-                }
-
-                dto.weekdayAssignees(map);
-            }
-
-            result.add(dto.build());
-        }
-
-        return result;
+        return tasks.stream()
+                .map(this::buildTaskResponse)
+                .toList();
     }
 
     @Transactional
@@ -534,6 +484,164 @@ public class TaskManagementService {
         }
 
         taskCompletionRepository.deleteById(new TaskCompletionId(taskId, date));
+    }
+
+    @Transactional
+    public List<TaskResponse> getTasksForDay(UUID userId, LocalDate date) {
+        LocalDate today = LocalDate.now(clock);
+
+        if (date.isBefore(today)) {
+            throw new IllegalArgumentException("Дата не может быть меньше текущей");
+        }
+
+        List<UUID> listIds = listMemberRepository.findAllById_UserId(userId).stream()
+                .map(x -> x.getId().getListId())
+                .distinct()
+                .toList();
+
+        if (listIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Task> tasks = taskRepository.findAllByListIdInOrderByTitleAsc(listIds);
+
+        List<TaskResponse> result = new ArrayList<>();
+
+        for (Task task : tasks) {
+            if (!isTaskScheduledOnDate(task, date)) {
+                continue;
+            }
+
+            UUID assigneeUserId = resolveAssigneeForDate(task, date);
+
+            if (!userId.equals(assigneeUserId)) {
+                continue;
+            }
+
+            result.add(buildTaskResponse(task));
+        }
+
+        return result;
+    }
+
+    private boolean isTaskScheduledOnDate(Task task, LocalDate date) {
+        if (date.isBefore(task.getStartDate())) {
+            return false;
+        }
+
+        if (task.getRecurrenceType() == RecurrenceType.EveryNdays) {
+            long daysBetween = ChronoUnit.DAYS.between(task.getStartDate(), date);
+            return daysBetween % task.getIntervalDays() == 0;
+        }
+
+        if (task.getRecurrenceType() == RecurrenceType.WeeklyByDays) {
+            int weekday = toWeekdayIndex(date);
+            return (task.getWeekdaysMask() & (1 << weekday)) != 0;
+        }
+
+        throw new IllegalStateException("Неподдерживаемый recurrenceType: " + task.getRecurrenceType());
+    }
+
+    private UUID resolveAssigneeForDate(Task task, LocalDate date) {
+        if (task.getAssignmentType() == AssignmentType.FixedUser) {
+            return task.getFixedUserId();
+        }
+
+        if (task.getAssignmentType() == AssignmentType.ByWeekday) {
+            int weekday = toWeekdayIndex(date);
+
+            return taskWeekdayAssigneeRepository.findAllById_TaskId(task.getId()).stream()
+                    .filter(x -> x.getId().getWeekday().equals(weekday))
+                    .map(TaskWeekdayAssignee::getUserId)
+                    .findFirst()
+                    .orElseThrow(() -> new EntityNotFoundException("Исполнитель ByWeekday не найден для дня недели"));
+        }
+
+        if (task.getAssignmentType() == AssignmentType.RoundRobin) {
+            List<TaskAssignmentCandidate> candidates =
+                    taskAssignmentCandidateRepository.findAllById_TaskIdOrderByPositionAsc(task.getId());
+
+            if (candidates.isEmpty()) {
+                throw new EntityNotFoundException("Не найдены кандидаты RoundRobin");
+            }
+
+            int occurrenceIndex = getOccurrenceIndex(task, date);
+            int candidateIndex = occurrenceIndex % candidates.size();
+
+            return candidates.get(candidateIndex).getId().getUserId();
+        }
+
+        throw new IllegalStateException("Неподдерживаемый assignmentType: " + task.getAssignmentType());
+    }
+
+    private int getOccurrenceIndex(Task task, LocalDate date) {
+        if (!isTaskScheduledOnDate(task, date)) {
+            throw new IllegalArgumentException("Нельзя вычислить occurrenceIndex для даты, на которую задача не запланирована");
+        }
+
+        int occurrenceIndex = 0;
+
+        for (LocalDate d = task.getStartDate(); d.isBefore(date); d = d.plusDays(1)) {
+            if (isTaskScheduledOnDate(task, d)) {
+                occurrenceIndex++;
+            }
+        }
+
+        return occurrenceIndex;
+    }
+
+    private int toWeekdayIndex(LocalDate date) {
+        return date.getDayOfWeek().getValue() - 1;
+    }
+
+    private TaskResponse buildTaskResponse(Task task) {
+        TaskResponse.TaskResponseBuilder dto = TaskResponse.builder()
+                .id(task.getId())
+                .startDate(task.getStartDate())
+                .listId(task.getListId())
+                .title(task.getTitle())
+                .recurrenceType(task.getRecurrenceType())
+                .intervalDays(task.getIntervalDays())
+                .weekdaysMask(task.getWeekdaysMask())
+                .weekdays(task.getWeekdaysMask() != null ? WeekdaysMask.toSet(task.getWeekdaysMask()) : null)
+                .assignmentType(task.getAssignmentType())
+                .fixedUserId(task.getFixedUserId());
+
+        if (task.getAssignmentType() == AssignmentType.RoundRobin) {
+            List<TaskAssignmentCandidate> candidates =
+                    taskAssignmentCandidateRepository.findAllById_TaskIdOrderByPositionAsc(task.getId());
+
+            List<TodoListMemberResponse> users = new ArrayList<>(candidates.size());
+
+            for (TaskAssignmentCandidate c : candidates) {
+                UUID candidateUserId = c.getId().getUserId();
+
+                ListMember member = listMemberRepository
+                        .findById_ListIdAndId_UserId(task.getListId(), candidateUserId)
+                        .orElseThrow(() -> new EntityNotFoundException("Кандидат RoundRobin не найден среди участников списка"));
+
+                users.add(TodoListMemberResponse.builder()
+                        .userId(candidateUserId)
+                        .login(member.getLogin())
+                        .build());
+            }
+
+            dto.roundRobinUsers(users);
+        }
+
+        if (task.getAssignmentType() == AssignmentType.ByWeekday) {
+            List<TaskWeekdayAssignee> assignees =
+                    taskWeekdayAssigneeRepository.findAllById_TaskId(task.getId());
+
+            Map<Integer, UUID> map = new LinkedHashMap<>();
+            for (TaskWeekdayAssignee a : assignees) {
+                map.put(a.getId().getWeekday(), a.getUserId());
+            }
+
+            dto.weekdayAssignees(map);
+        }
+
+        return dto.build();
     }
 
     private void validateTaskRecurrenceRule(CreateTaskRequest request) {

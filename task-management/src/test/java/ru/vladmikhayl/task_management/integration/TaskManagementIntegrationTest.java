@@ -15,6 +15,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import ru.vladmikhayl.task_management.FeignClientTestConfig;
+import ru.vladmikhayl.task_management.TestTimeConfig;
 import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
@@ -40,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles("test")
-@Import(FeignClientTestConfig.class)
+@Import({FeignClientTestConfig.class, TestTimeConfig.class})
 @TestPropertySource(properties = { "spring.config.location=classpath:/application-test.yml" })
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -675,6 +676,166 @@ public class TaskManagementIntegrationTest {
                 .andExpect(jsonPath("$.completedAt").doesNotExist());
     }
 
+    @Test
+    void getTasksForDay_userHasNoLists_returnsEmptyArray() throws Exception {
+        UUID user = UUID.randomUUID();
+
+        JsonNode result = getTasksForDayAndExpect200_GetJson(user, "2026-03-08");
+
+        assertThat(result.isArray()).isTrue();
+        assertThat(result).hasSize(0);
+    }
+
+    @Test
+    void getTasksForDay_listsExistButNoTasksForSelectedDate_returnsEmptyArray() throws Exception {
+        UUID owner = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("owner_login"));
+
+        createListAndExpect201(owner, "Домашние дела");
+        String listId = getListsAndExpect200_AndGetFirstListId(owner);
+
+        createTaskAndExpect201_AndGetId(owner, listId, CreateTaskRequest.builder()
+                .title("Редкая задача")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(owner)
+                .build());
+
+        JsonNode result = getTasksForDayAndExpect200_GetJson(owner, "2026-03-09");
+
+        assertThat(result.isArray()).isTrue();
+        assertThat(result).hasSize(0);
+    }
+
+    @Test
+    void tasksForDayFlow_happyPath_acrossSeveralDates() throws Exception {
+        UUID owner = UUID.randomUUID();
+        UUID userB = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("owner_login"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB_login"));
+
+        createListAndExpect201(owner, "Домашние дела");
+        String listId = getListsAndExpect200_AndGetFirstListId(owner);
+
+        String token = createInviteAndExpect201(owner, listId);
+        acceptInviteAndExpect200(userB, token);
+
+        // FixedUser: owner выполняет каждые 2 дня, начиная с даты создания
+        String fixedTaskId = createTaskAndExpect201_AndGetId(owner, listId, CreateTaskRequest.builder()
+                .title("Вынести мусор")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(2)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(owner)
+                .build());
+
+        // ByWeekday: owner по понедельникам, userB по вторникам
+        String byWeekdayTaskId = createTaskAndExpect201_AndGetId(owner, listId, CreateTaskRequest.builder()
+                .title("Посуда")
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdays(Set.of(0, 1))
+                .assignmentType(AssignmentType.ByWeekday)
+                .weekdayAssignees(java.util.Map.of(
+                        0, owner,
+                        1, userB,
+                        2, owner,
+                        3, owner,
+                        4, owner,
+                        5, owner,
+                        6, owner
+                ))
+                .build());
+
+        // RoundRobin: owner -> userB -> owner ...
+        String rrTaskId = createTaskAndExpect201_AndGetId(owner, listId, CreateTaskRequest.builder()
+                .title("Покупки")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(1)
+                .assignmentType(AssignmentType.RoundRobin)
+                .roundRobinUserIds(List.of(owner, userB))
+                .build());
+
+        // День 1 (воскресенье): fixed + rrу owner, ничего у userB
+        JsonNode ownerDay1 = getTasksForDayAndExpect200_GetJson(owner, "2026-03-08");
+        assertTaskIdsExactly(ownerDay1, fixedTaskId, rrTaskId);
+
+        JsonNode userBDay1 = getTasksForDayAndExpect200_GetJson(userB, "2026-03-08");
+        assertThat(userBDay1.isArray()).isTrue();
+        assertThat(userBDay1).hasSize(0);
+
+        // День 2 (понедельник): byWeekday у owner, rr у userB
+        JsonNode ownerDay2 = getTasksForDayAndExpect200_GetJson(owner, "2026-03-09");
+        assertTaskIdsExactly(ownerDay2, byWeekdayTaskId);
+
+        JsonNode userBDay2 = getTasksForDayAndExpect200_GetJson(userB, "2026-03-09");
+        assertTaskIdsExactly(userBDay2, rrTaskId);
+
+        // День 3 (вторник): fixed + rr у owner, byWeekday у userB
+        JsonNode ownerDay3 = getTasksForDayAndExpect200_GetJson(owner, "2026-03-10");
+        assertTaskIdsExactly(ownerDay3, fixedTaskId, rrTaskId);
+
+        JsonNode userBDay3 = getTasksForDayAndExpect200_GetJson(userB, "2026-03-10");
+        assertTaskIdsExactly(userBDay3, byWeekdayTaskId);
+
+        JsonNode fixedNode = findTaskById(ownerDay1, fixedTaskId);
+        assertThat(fixedNode.get("title").asText()).isEqualTo("Вынести мусор");
+        assertThat(fixedNode.get("recurrenceType").asText()).isEqualTo("EveryNdays");
+        assertThat(fixedNode.get("intervalDays").asInt()).isEqualTo(2);
+        assertThat(fixedNode.get("assignmentType").asText()).isEqualTo("FixedUser");
+        assertThat(fixedNode.get("fixedUserId").asText()).isEqualTo(owner.toString());
+        assertThat(fixedNode.get("startDate").asText()).isNotBlank();
+
+        JsonNode rrNode = findTaskById(ownerDay1, rrTaskId);
+        assertThat(rrNode.get("title").asText()).isEqualTo("Покупки");
+        assertThat(rrNode.get("assignmentType").asText()).isEqualTo("RoundRobin");
+        assertThat(rrNode.get("roundRobinUsers").isArray()).isTrue();
+        assertThat(rrNode.get("roundRobinUsers").size()).isEqualTo(2);
+        assertThat(rrNode.get("roundRobinUsers").get(0).get("userId").asText()).isEqualTo(owner.toString());
+        assertThat(rrNode.get("roundRobinUsers").get(0).get("login").asText()).isEqualTo("owner_login");
+        assertThat(rrNode.get("roundRobinUsers").get(1).get("userId").asText()).isEqualTo(userB.toString());
+        assertThat(rrNode.get("roundRobinUsers").get(1).get("login").asText()).isEqualTo("userB_login");
+    }
+
+    @Test
+    void getTasksForDay_userHasSeveralLists_returnsTasksFromAllLists() throws Exception {
+        UUID user = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(user)).thenReturn(ResponseEntity.ok("user_login"));
+
+        createListAndExpect201(user, "Дом");
+        createListAndExpect201(user, "Работа");
+
+        JsonNode lists = getListsAndExpect200_GetJson(user);
+        String list1 = lists.get(0).get("id").asText();
+        String list2 = lists.get(1).get("id").asText();
+
+        String task1 = createTaskAndExpect201_AndGetId(user, list1, CreateTaskRequest.builder()
+                .title("Домашняя задача")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(1)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(user)
+                .build());
+
+        String task2 = createTaskAndExpect201_AndGetId(user, list2, CreateTaskRequest.builder()
+                .title("Рабочая задача")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(1)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(user)
+                .build());
+
+        JsonNode result = getTasksForDayAndExpect200_GetJson(user, "2026-03-08");
+
+        assertTaskIdsExactly(result, task1, task2);
+
+        assertThat(findTaskById(result, task1).get("listId").asText()).isEqualTo(list1);
+        assertThat(findTaskById(result, task2).get("listId").asText()).isEqualTo(list2);
+    }
+
     private ResultActions getListsAndExpect200(UUID userId) throws Exception {
         return mockMvc.perform(get("/api/v1/lists")
                 .header("X-User-Id", userId.toString()))
@@ -807,5 +968,33 @@ public class TaskManagementIntegrationTest {
     private void deleteTaskCompletionAndExpect200(UUID userId, String taskId, String date) throws Exception {
         deleteTaskCompletion(userId, taskId, date)
                 .andExpect(status().isOk());
+    }
+
+    private ResultActions getTasksForDay(UUID userId, String date) throws Exception {
+        return mockMvc.perform(get("/api/v1/tasks")
+                .header("X-User-Id", userId.toString())
+                .param("date", date));
+    }
+
+    private ResultActions getTasksForDayAndExpect200(UUID userId, String date) throws Exception {
+        return getTasksForDay(userId, date)
+                .andExpect(status().isOk());
+    }
+
+    private JsonNode getTasksForDayAndExpect200_GetJson(UUID userId, String date) throws Exception {
+        var mvcResult = getTasksForDayAndExpect200(userId, date).andReturn();
+        return objectMapper.readTree(mvcResult.getResponse().getContentAsString());
+    }
+
+    private void assertTaskIdsExactly(JsonNode tasksArray, String... expectedTaskIds) {
+        assertThat(tasksArray.isArray()).isTrue();
+        assertThat(tasksArray).hasSize(expectedTaskIds.length);
+
+        List<String> actualIds = new java.util.ArrayList<>();
+        for (JsonNode n : tasksArray) {
+            actualIds.add(n.get("id").asText());
+        }
+
+        assertThat(actualIds).containsExactlyInAnyOrder(expectedTaskIds);
     }
 }

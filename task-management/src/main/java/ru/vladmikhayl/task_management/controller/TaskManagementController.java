@@ -240,4 +240,14 @@ public class TaskManagementController {
         taskManagementService.deleteTaskCompletion(userId, taskId, date);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/tasks")
+    @Operation(summary = "Получить задачи текущего пользователя на выбранный день")
+    @ApiResponse(responseCode = "200", description = "Успешно")
+    public ResponseEntity<List<TaskResponse>> getTasksForDay(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return ResponseEntity.ok(taskManagementService.getTasksForDay(userId, date));
+    }
 }

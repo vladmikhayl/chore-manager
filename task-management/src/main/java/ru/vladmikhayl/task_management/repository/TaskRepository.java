@@ -12,6 +12,8 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
 
     boolean existsByListIdAndAssignmentTypeAndFixedUserId(UUID listId, AssignmentType assignmentType, UUID fixedUserId);
 
+    List<Task> findAllByListIdInOrderByTitleAsc(List<UUID> listIds);
+
     List<Task> findAllByListIdOrderByTitleAsc(UUID listId);
 
     List<Task> findAllByListId(UUID listId);

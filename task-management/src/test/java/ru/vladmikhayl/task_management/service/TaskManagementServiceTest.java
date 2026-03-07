@@ -21,6 +21,7 @@ import ru.vladmikhayl.task_management.entity.task.*;
 import ru.vladmikhayl.task_management.feign.IdentityClient;
 import ru.vladmikhayl.task_management.repository.*;
 import ru.vladmikhayl.task_management.dto.response.TodoListMemberResponse;
+import ru.vladmikhayl.task_management.dto.response.TaskResponse;
 
 import java.time.*;
 import java.time.temporal.ChronoUnit;
@@ -1792,6 +1793,284 @@ public class TaskManagementServiceTest {
         taskManagementService.deleteTaskCompletion(USER_ID, taskId, date);
 
         verify(taskCompletionRepository).deleteById(new TaskCompletionId(taskId, date));
+    }
+
+    @Test
+    void getTasksForDay_dateBeforeToday_throwsIllegalArgumentException() {
+        UUID userId = UUID.randomUUID();
+        LocalDate today = LocalDate.of(2026, 3, 8);
+
+        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneOffset.UTC).toInstant());
+        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+
+        assertThatThrownBy(() -> taskManagementService.getTasksForDay(userId, today.minusDays(1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Дата не может быть меньше текущей");
+    }
+
+    @Test
+    void getTasksForDay_userHasNoLists_returnsEmpty() {
+        UUID userId = UUID.randomUUID();
+        LocalDate today = LocalDate.of(2026, 3, 8);
+
+        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneOffset.UTC).toInstant());
+        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+
+        when(listMemberRepository.findAllById_UserId(userId)).thenReturn(List.of());
+
+        var result = taskManagementService.getTasksForDay(userId, today);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getTasksForDay_noMatchingTasks_returnsEmpty() {
+        UUID userId = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+        LocalDate today = LocalDate.of(2026, 3, 8);
+
+        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneOffset.UTC).toInstant());
+        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+
+        when(listMemberRepository.findAllById_UserId(userId)).thenReturn(List.of(
+                ListMember.builder()
+                        .id(new ListMemberId(listId, userId))
+                        .login("user")
+                        .build()
+        ));
+
+        Task notScheduled = Task.builder()
+                .id(UUID.randomUUID())
+                .listId(listId)
+                .title("A")
+                .startDate(LocalDate.of(2026, 3, 7))
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(userId)
+                .build();
+
+        Task assignedToAnotherUser = Task.builder()
+                .id(UUID.randomUUID())
+                .listId(listId)
+                .title("B")
+                .startDate(LocalDate.of(2026, 3, 3))
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(5)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(UUID.randomUUID())
+                .build();
+
+        when(taskRepository.findAllByListIdInOrderByTitleAsc(List.of(listId)))
+                .thenReturn(List.of(notScheduled, assignedToAnotherUser));
+
+        var result = taskManagementService.getTasksForDay(userId, today);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getTasksForDay_success_mixedAssignments() {
+        UUID userId = UUID.randomUUID();
+        UUID otherUser = UUID.randomUUID();
+
+        UUID listId1 = UUID.randomUUID();
+        UUID listId2 = UUID.randomUUID();
+
+        LocalDate today = LocalDate.of(2026, 3, 8); // воскресенье
+        LocalDate date = LocalDate.of(2026, 3, 10); // вторник
+
+        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneOffset.UTC).toInstant());
+        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+
+        when(listMemberRepository.findAllById_UserId(userId)).thenReturn(List.of(
+                ListMember.builder().id(new ListMemberId(listId1, userId)).login("me").build(),
+                ListMember.builder().id(new ListMemberId(listId2, userId)).login("me").build()
+        ));
+
+        UUID fixedTaskId = UUID.randomUUID();
+        UUID byWeekdayTaskId = UUID.randomUUID();
+        UUID rrTaskId = UUID.randomUUID();
+        UUID notMineTaskId = UUID.randomUUID();
+        UUID notScheduledTaskId = UUID.randomUUID();
+
+        Task fixedTask = Task.builder()
+                .id(fixedTaskId)
+                .listId(listId1)
+                .title("A fixed")
+                .startDate(LocalDate.of(2026, 3, 8))
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(2) // 8,10,12...
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(userId)
+                .build();
+
+        int tueThuMask = WeekdaysMask.toMask(Set.of(1, 3));
+
+        Task byWeekdayTask = Task.builder()
+                .id(byWeekdayTaskId)
+                .listId(listId1)
+                .title("B byweekday")
+                .startDate(LocalDate.of(2026, 3, 1))
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdaysMask(tueThuMask)
+                .assignmentType(AssignmentType.ByWeekday)
+                .fixedUserId(null)
+                .build();
+
+        Task rrTask = Task.builder()
+                .id(rrTaskId)
+                .listId(listId2)
+                .title("C rr")
+                .startDate(LocalDate.of(2026, 3, 8))
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(1)
+                .assignmentType(AssignmentType.RoundRobin)
+                .fixedUserId(null)
+                .build();
+
+        Task notMineTask = Task.builder()
+                .id(notMineTaskId)
+                .listId(listId1)
+                .title("D чужая")
+                .startDate(LocalDate.of(2026, 3, 8))
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(2)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(otherUser)
+                .build();
+
+        Task notScheduledTask = Task.builder()
+                .id(notScheduledTaskId)
+                .listId(listId1)
+                .title("E не на этот день")
+                .startDate(LocalDate.of(2026, 3, 8))
+                .recurrenceType(RecurrenceType.WeeklyByDays)
+                .weekdaysMask(WeekdaysMask.toMask(Set.of(0, 2, 4))) // пн/ср/пт
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(userId)
+                .build();
+
+        when(taskRepository.findAllByListIdInOrderByTitleAsc(List.of(listId1, listId2)))
+                .thenReturn(List.of(fixedTask, byWeekdayTask, rrTask, notMineTask, notScheduledTask));
+
+        when(taskWeekdayAssigneeRepository.findAllById_TaskId(byWeekdayTaskId)).thenReturn(List.of(
+                TaskWeekdayAssignee.builder()
+                        .id(new TaskWeekdayAssigneeId(byWeekdayTaskId, 1))
+                        .userId(userId)
+                        .build(),
+                TaskWeekdayAssignee.builder()
+                        .id(new TaskWeekdayAssigneeId(byWeekdayTaskId, 3))
+                        .userId(otherUser)
+                        .build()
+        ));
+
+        when(taskAssignmentCandidateRepository.findAllById_TaskIdOrderByPositionAsc(rrTaskId)).thenReturn(List.of(
+                TaskAssignmentCandidate.builder()
+                        .id(new TaskAssignmentCandidateId(rrTaskId, userId))
+                        .position(0)
+                        .build(),
+                TaskAssignmentCandidate.builder()
+                        .id(new TaskAssignmentCandidateId(rrTaskId, otherUser))
+                        .position(1)
+                        .build()
+        ));
+
+        when(listMemberRepository.findById_ListIdAndId_UserId(listId2, userId))
+                .thenReturn(Optional.of(ListMember.builder()
+                        .id(new ListMemberId(listId2, userId))
+                        .login("me")
+                        .build()));
+        when(listMemberRepository.findById_ListIdAndId_UserId(listId2, otherUser))
+                .thenReturn(Optional.of(ListMember.builder()
+                        .id(new ListMemberId(listId2, otherUser))
+                        .login("other")
+                        .build()));
+
+        var result = taskManagementService.getTasksForDay(userId, date);
+
+        assertThat(result).hasSize(3);
+        assertThat(result).extracting(TaskResponse::getId)
+                .containsExactly(fixedTaskId, byWeekdayTaskId, rrTaskId);
+
+        var fixedDto = result.get(0);
+        assertThat(fixedDto.getId()).isEqualTo(fixedTaskId);
+        assertThat(fixedDto.getTitle()).isEqualTo("A fixed");
+        assertThat(fixedDto.getAssignmentType()).isEqualTo(AssignmentType.FixedUser);
+        assertThat(fixedDto.getFixedUserId()).isEqualTo(userId);
+
+        var byWeekdayDto = result.get(1);
+        assertThat(byWeekdayDto.getId()).isEqualTo(byWeekdayTaskId);
+        assertThat(byWeekdayDto.getTitle()).isEqualTo("B byweekday");
+        assertThat(byWeekdayDto.getAssignmentType()).isEqualTo(AssignmentType.ByWeekday);
+        assertThat(byWeekdayDto.getWeekdayAssignees())
+                .containsEntry(1, userId)
+                .containsEntry(3, otherUser);
+
+        var rrDto = result.get(2);
+        assertThat(rrDto.getId()).isEqualTo(rrTaskId);
+        assertThat(rrDto.getTitle()).isEqualTo("C rr");
+        assertThat(rrDto.getAssignmentType()).isEqualTo(AssignmentType.RoundRobin);
+        assertThat(rrDto.getRoundRobinUsers())
+                .extracting(TodoListMemberResponse::getUserId, TodoListMemberResponse::getLogin)
+                .containsExactly(
+                        tuple(userId, "me"),
+                        tuple(otherUser, "other")
+                );
+    }
+
+    @Test
+    void getTasksForDay_roundRobin_changesAssigneeDependingOnDate() {
+        UUID userId = UUID.randomUUID();
+        UUID otherUser = UUID.randomUUID();
+        UUID listId = UUID.randomUUID();
+        UUID taskId = UUID.randomUUID();
+
+        LocalDate today = LocalDate.of(2026, 3, 8);
+
+        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneOffset.UTC).toInstant());
+        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+
+        when(listMemberRepository.findAllById_UserId(userId)).thenReturn(List.of(
+                ListMember.builder().id(new ListMemberId(listId, userId)).login("me").build()
+        ));
+
+        Task rrTask = Task.builder()
+                .id(taskId)
+                .listId(listId)
+                .title("RR")
+                .startDate(LocalDate.of(2026, 3, 8))
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(1)
+                .assignmentType(AssignmentType.RoundRobin)
+                .build();
+
+        when(taskRepository.findAllByListIdInOrderByTitleAsc(List.of(listId)))
+                .thenReturn(List.of(rrTask));
+
+        when(taskAssignmentCandidateRepository.findAllById_TaskIdOrderByPositionAsc(taskId)).thenReturn(List.of(
+                TaskAssignmentCandidate.builder()
+                        .id(new TaskAssignmentCandidateId(taskId, userId))
+                        .position(0)
+                        .build(),
+                TaskAssignmentCandidate.builder()
+                        .id(new TaskAssignmentCandidateId(taskId, otherUser))
+                        .position(1)
+                        .build()
+        ));
+
+        when(listMemberRepository.findById_ListIdAndId_UserId(listId, userId))
+                .thenReturn(Optional.of(ListMember.builder().id(new ListMemberId(listId, userId)).login("me").build()));
+        when(listMemberRepository.findById_ListIdAndId_UserId(listId, otherUser))
+                .thenReturn(Optional.of(ListMember.builder().id(new ListMemberId(listId, otherUser)).login("other").build()));
+
+        var resultFor8 = taskManagementService.getTasksForDay(userId, LocalDate.of(2026, 3, 8));
+        var resultFor9 = taskManagementService.getTasksForDay(userId, LocalDate.of(2026, 3, 9));
+        var resultFor10 = taskManagementService.getTasksForDay(userId, LocalDate.of(2026, 3, 10));
+
+        assertThat(resultFor8).hasSize(1);
+        assertThat(resultFor9).isEmpty();
+        assertThat(resultFor10).hasSize(1);
     }
 
     private void stubListExists(UUID listId) {
