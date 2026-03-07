@@ -364,6 +364,7 @@ public class TaskManagementIntegrationTest {
         assertThat(fixedNode.get("intervalDays").asInt()).isEqualTo(3);
         assertThat(fixedNode.get("assignmentType").asText()).isEqualTo("FixedUser");
         assertThat(fixedNode.get("fixedUserId").asText()).isEqualTo(owner.toString());
+        assertThat(fixedNode.get("startDate").asText()).isNotBlank();
 
         // RoundRobin task checks
         var rrNode = findTaskById(tasksJson, rrTaskId);
@@ -373,12 +374,13 @@ public class TaskManagementIntegrationTest {
         assertThat(rrNode.get("weekdays").isArray()).isTrue();
         assertThat(rrNode.get("weekdays")).extracting(JsonNode::asInt).contains(0, 2, 4);
         assertThat(rrNode.get("assignmentType").asText()).isEqualTo("RoundRobin");
-        assertThat(rrNode.get("rrCursor").asInt()).isEqualTo(0);
+        assertThat(rrNode.get("startDate").asText()).isNotBlank();
         assertThat(rrNode.get("roundRobinUsers").isArray()).isTrue();
         assertThat(rrNode.get("roundRobinUsers").size()).isEqualTo(2);
-        assertThat(rrNode.get("roundRobinUsers").toString())
-                .contains(owner.toString()).contains("owner_login")
-                .contains(userB.toString()).contains("userB_login");
+        assertThat(rrNode.get("roundRobinUsers").get(0).get("userId").asText()).isEqualTo(owner.toString());
+        assertThat(rrNode.get("roundRobinUsers").get(0).get("login").asText()).isEqualTo("owner_login");
+        assertThat(rrNode.get("roundRobinUsers").get(1).get("userId").asText()).isEqualTo(userB.toString());
+        assertThat(rrNode.get("roundRobinUsers").get(1).get("login").asText()).isEqualTo("userB_login");
     }
 
     @Test
@@ -410,7 +412,7 @@ public class TaskManagementIntegrationTest {
         var nodeBefore = findTaskById(tasksBefore, taskId);
 
         assertThat(nodeBefore.get("assignmentType").asText()).isEqualTo("RoundRobin");
-        assertThat(nodeBefore.get("rrCursor").asInt()).isEqualTo(0);
+        assertThat(nodeBefore.get("startDate").asText()).isNotBlank();
         assertThat(nodeBefore.get("roundRobinUsers").isArray()).isTrue();
         assertThat(nodeBefore.get("roundRobinUsers").size()).isEqualTo(2);
         assertThat(nodeBefore.get("roundRobinUsers").toString())
@@ -435,7 +437,7 @@ public class TaskManagementIntegrationTest {
         assertThat(nodeAfter.get("assignmentType").asText()).isEqualTo("FixedUser");
         assertThat(nodeAfter.get("fixedUserId").asText()).isEqualTo(userB.toString());
         assertThat(nodeAfter.get("roundRobinUsers").isNull()).isTrue();
-        assertThat(nodeAfter.get("rrCursor").isNull()).isTrue();
+        assertThat(nodeAfter.get("startDate").asText()).isNotBlank();
     }
 
     @Test

@@ -199,6 +199,7 @@ public class TaskManagementService {
         );
 
         Task task = Task.builder()
+                .startDate(LocalDate.now(clock))
                 .listId(listId)
                 .title(title)
                 .recurrenceType(request.getRecurrenceType())
@@ -206,16 +207,17 @@ public class TaskManagementService {
                 .weekdaysMask(request.getRecurrenceType() == RecurrenceType.WeeklyByDays ? WeekdaysMask.toMask(request.getWeekdays()) : null)
                 .assignmentType(request.getAssignmentType())
                 .fixedUserId(request.getAssignmentType() == AssignmentType.FixedUser ? request.getFixedUserId() : null)
-                .rrCursor(request.getAssignmentType() == AssignmentType.RoundRobin ? 0 : null)
                 .build();
 
         task = taskRepository.save(task);
 
         if (request.getAssignmentType() == AssignmentType.RoundRobin) {
-            for (UUID candidateId : request.getRoundRobinUserIds()) {
+            for (int i = 0; i < request.getRoundRobinUserIds().size(); i++) {
+                UUID candidateId = request.getRoundRobinUserIds().get(i);
                 taskAssignmentCandidateRepository.save(
                         TaskAssignmentCandidate.builder()
                                 .id(new TaskAssignmentCandidateId(task.getId(), candidateId))
+                                .position(i)
                                 .build()
                 );
             }
@@ -251,6 +253,7 @@ public class TaskManagementService {
         for (Task task : tasks) {
             TaskResponse.TaskResponseBuilder dto = TaskResponse.builder()
                     .id(task.getId())
+                    .startDate(task.getStartDate())
                     .listId(task.getListId())
                     .title(task.getTitle())
                     .recurrenceType(task.getRecurrenceType())
@@ -258,12 +261,11 @@ public class TaskManagementService {
                     .weekdaysMask(task.getWeekdaysMask())
                     .weekdays(task.getWeekdaysMask() != null ? WeekdaysMask.toSet(task.getWeekdaysMask()) : null)
                     .assignmentType(task.getAssignmentType())
-                    .fixedUserId(task.getFixedUserId())
-                    .rrCursor(task.getRrCursor());
+                    .fixedUserId(task.getFixedUserId());
 
             if (task.getAssignmentType() == AssignmentType.RoundRobin) {
                 List<TaskAssignmentCandidate> candidates =
-                        taskAssignmentCandidateRepository.findAllById_TaskId(task.getId());
+                        taskAssignmentCandidateRepository.findAllById_TaskIdOrderByPositionAsc(task.getId());
 
                 List<TodoListMemberResponse> users = new ArrayList<>(candidates.size());
 
@@ -327,17 +329,17 @@ public class TaskManagementService {
 
         if (request.getAssignmentType() == AssignmentType.FixedUser) {
             task.setFixedUserId(request.getFixedUserId());
-            task.setRrCursor(null);
         }
 
         if (request.getAssignmentType() == AssignmentType.RoundRobin) {
             task.setFixedUserId(null);
-            task.setRrCursor(0);
 
-            for (UUID candidateId : request.getRoundRobinUserIds()) {
+            for (int i = 0; i < request.getRoundRobinUserIds().size(); i++) {
+                UUID candidateId = request.getRoundRobinUserIds().get(i);
                 taskAssignmentCandidateRepository.save(
                         TaskAssignmentCandidate.builder()
                                 .id(new TaskAssignmentCandidateId(taskId, candidateId))
+                                .position(i)
                                 .build()
                 );
             }
@@ -345,7 +347,6 @@ public class TaskManagementService {
 
         if (request.getAssignmentType() == AssignmentType.ByWeekday) {
             task.setFixedUserId(null);
-            task.setRrCursor(null);
 
             for (var e : request.getWeekdayAssignees().entrySet()) {
                 taskWeekdayAssigneeRepository.save(

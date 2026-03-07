@@ -783,6 +783,10 @@ public class TaskManagementServiceTest {
         stubUserIsMember(LIST_ID, USER_ID);
         stubTitleNotExists(LIST_ID, "Вынести мусор");
 
+        Instant now = Instant.parse("2026-03-05T10:15:30Z");
+        when(clock.instant()).thenReturn(now);
+        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+
         UUID fixed = UUID.randomUUID();
         stubUserIsMember(LIST_ID, fixed);
 
@@ -805,6 +809,7 @@ public class TaskManagementServiceTest {
         verify(taskRepository).save(captor.capture());
         Task saved = captor.getValue();
 
+        assertThat(saved.getStartDate()).isEqualTo(LocalDate.now(clock));
         assertThat(saved.getListId()).isEqualTo(LIST_ID);
         assertThat(saved.getTitle()).isEqualTo("Вынести мусор");
         assertThat(saved.getRecurrenceType()).isEqualTo(RecurrenceType.WeeklyByDays);
@@ -812,7 +817,6 @@ public class TaskManagementServiceTest {
         assertThat(saved.getWeekdaysMask()).isEqualTo(WeekdaysMask.toMask(Set.of(0, 2, 4)));
         assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.FixedUser);
         assertThat(saved.getFixedUserId()).isEqualTo(fixed);
-        assertThat(saved.getRrCursor()).isNull();
 
         verifyNoInteractions(taskAssignmentCandidateRepository);
         verifyNoInteractions(taskWeekdayAssigneeRepository);
@@ -823,6 +827,10 @@ public class TaskManagementServiceTest {
         stubListExists(LIST_ID);
         stubUserIsMember(LIST_ID, USER_ID);
         stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        Instant now = Instant.parse("2026-03-05T10:15:30Z");
+        when(clock.instant()).thenReturn(now);
+        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
 
         UUID c1 = UUID.randomUUID();
         UUID c2 = UUID.randomUUID();
@@ -848,23 +856,27 @@ public class TaskManagementServiceTest {
         verify(taskRepository).save(taskCaptor.capture());
         Task saved = taskCaptor.getValue();
 
+        assertThat(saved.getStartDate()).isEqualTo(LocalDate.now(clock));
         assertThat(saved.getListId()).isEqualTo(LIST_ID);
         assertThat(saved.getTitle()).isEqualTo("Вынести мусор");
         assertThat(saved.getRecurrenceType()).isEqualTo(RecurrenceType.EveryNdays);
         assertThat(saved.getIntervalDays()).isEqualTo(5);
         assertThat(saved.getWeekdaysMask()).isNull();
         assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.RoundRobin);
-        assertThat(saved.getRrCursor()).isEqualTo(0);
         assertThat(saved.getFixedUserId()).isNull();
 
         ArgumentCaptor<TaskAssignmentCandidate> cCaptor = ArgumentCaptor.forClass(TaskAssignmentCandidate.class);
         verify(taskAssignmentCandidateRepository, times(2)).save(cCaptor.capture());
 
         assertThat(cCaptor.getAllValues())
-                .extracting(x -> x.getId().getTaskId(), x -> x.getId().getUserId())
-                .containsExactlyInAnyOrder(
-                        tuple(savedTaskId, c1),
-                        tuple(savedTaskId, c2)
+                .extracting(
+                        x -> x.getId().getTaskId(),
+                        x -> x.getId().getUserId(),
+                        TaskAssignmentCandidate::getPosition
+                )
+                .containsExactly(
+                        tuple(savedTaskId, c1, 0),
+                        tuple(savedTaskId, c2, 1)
                 );
 
         verifyNoInteractions(taskWeekdayAssigneeRepository);
@@ -875,6 +887,10 @@ public class TaskManagementServiceTest {
         stubListExists(LIST_ID);
         stubUserIsMember(LIST_ID, USER_ID);
         stubTitleNotExists(LIST_ID, "Вынести мусор");
+
+        Instant now = Instant.parse("2026-03-05T10:15:30Z");
+        when(clock.instant()).thenReturn(now);
+        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
 
         UUID u0 = UUID.randomUUID();
         UUID u1 = UUID.randomUUID();
@@ -902,13 +918,13 @@ public class TaskManagementServiceTest {
         verify(taskRepository).save(taskCaptor.capture());
         Task saved = taskCaptor.getValue();
 
+        assertThat(saved.getStartDate()).isEqualTo(LocalDate.now(clock));
         assertThat(saved.getListId()).isEqualTo(LIST_ID);
         assertThat(saved.getTitle()).isEqualTo("Вынести мусор");
         assertThat(saved.getRecurrenceType()).isEqualTo(RecurrenceType.WeeklyByDays);
         assertThat(saved.getIntervalDays()).isNull();
         assertThat(saved.getWeekdaysMask()).isEqualTo(WeekdaysMask.toMask(Set.of(0, 1, 2, 3, 4, 5)));
         assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.ByWeekday);
-        assertThat(saved.getRrCursor()).isNull();
         assertThat(saved.getFixedUserId()).isNull();
 
         verify(taskWeekdayAssigneeRepository, times(7)).save(any(TaskWeekdayAssignee.class));
@@ -991,9 +1007,11 @@ public class TaskManagementServiceTest {
         UUID byWTaskId = UUID.randomUUID();
 
         UUID fixedUserId = UUID.randomUUID();
+        LocalDate startDate = LocalDate.of(2026, 3, 7);
 
         Task fixedTask = Task.builder()
                 .id(fixedTaskId)
+                .startDate(startDate)
                 .listId(listId)
                 .title("A fixed")
                 .recurrenceType(RecurrenceType.EveryNdays)
@@ -1001,13 +1019,13 @@ public class TaskManagementServiceTest {
                 .weekdaysMask(null)
                 .assignmentType(AssignmentType.FixedUser)
                 .fixedUserId(fixedUserId)
-                .rrCursor(null)
                 .build();
 
         int maskMonWedFri = WeekdaysMask.toMask(Set.of(0, 2, 4));
 
         Task rrTask = Task.builder()
                 .id(rrTaskId)
+                .startDate(startDate)
                 .listId(listId)
                 .title("B rr")
                 .recurrenceType(RecurrenceType.WeeklyByDays)
@@ -1015,11 +1033,11 @@ public class TaskManagementServiceTest {
                 .weekdaysMask(maskMonWedFri)
                 .assignmentType(AssignmentType.RoundRobin)
                 .fixedUserId(null)
-                .rrCursor(0)
                 .build();
 
         Task byWeekdayTask = Task.builder()
                 .id(byWTaskId)
+                .startDate(startDate)
                 .listId(listId)
                 .title("C byweekday")
                 .recurrenceType(RecurrenceType.WeeklyByDays)
@@ -1027,7 +1045,6 @@ public class TaskManagementServiceTest {
                 .weekdaysMask(maskMonWedFri)
                 .assignmentType(AssignmentType.ByWeekday)
                 .fixedUserId(null)
-                .rrCursor(null)
                 .build();
 
         when(taskRepository.findAllByListIdOrderByTitleAsc(listId)).thenReturn(List.of(fixedTask, rrTask, byWeekdayTask));
@@ -1036,9 +1053,15 @@ public class TaskManagementServiceTest {
         UUID cand1 = UUID.randomUUID();
         UUID cand2 = UUID.randomUUID();
 
-        when(taskAssignmentCandidateRepository.findAllById_TaskId(rrTaskId)).thenReturn(List.of(
-                TaskAssignmentCandidate.builder().id(new TaskAssignmentCandidateId(rrTaskId, cand1)).build(),
-                TaskAssignmentCandidate.builder().id(new TaskAssignmentCandidateId(rrTaskId, cand2)).build()
+        when(taskAssignmentCandidateRepository.findAllById_TaskIdOrderByPositionAsc(rrTaskId)).thenReturn(List.of(
+                TaskAssignmentCandidate.builder()
+                        .id(new TaskAssignmentCandidateId(rrTaskId, cand1))
+                        .position(0)
+                        .build(),
+                TaskAssignmentCandidate.builder()
+                        .id(new TaskAssignmentCandidateId(rrTaskId, cand2))
+                        .position(1)
+                        .build()
         ));
 
         // logins from list_members
@@ -1067,6 +1090,7 @@ public class TaskManagementServiceTest {
         assertThat(result).hasSize(3);
 
         var fixedDto = result.stream().filter(x -> x.getId().equals(fixedTaskId)).findFirst().orElseThrow();
+        assertThat(fixedDto.getStartDate()).isEqualTo(startDate);
         assertThat(fixedDto.getTitle()).isEqualTo("A fixed");
         assertThat(fixedDto.getRecurrenceType()).isEqualTo(RecurrenceType.EveryNdays);
         assertThat(fixedDto.getIntervalDays()).isEqualTo(2);
@@ -1074,11 +1098,11 @@ public class TaskManagementServiceTest {
         assertThat(fixedDto.getWeekdays()).isNull();
         assertThat(fixedDto.getAssignmentType()).isEqualTo(AssignmentType.FixedUser);
         assertThat(fixedDto.getFixedUserId()).isEqualTo(fixedUserId);
-        assertThat(fixedDto.getRrCursor()).isNull();
         assertThat(fixedDto.getRoundRobinUsers()).isNull();
         assertThat(fixedDto.getWeekdayAssignees()).isNull();
 
         var rrDto = result.stream().filter(x -> x.getId().equals(rrTaskId)).findFirst().orElseThrow();
+        assertThat(fixedDto.getStartDate()).isEqualTo(startDate);
         assertThat(rrDto.getTitle()).isEqualTo("B rr");
         assertThat(rrDto.getRecurrenceType()).isEqualTo(RecurrenceType.WeeklyByDays);
         assertThat(rrDto.getIntervalDays()).isNull();
@@ -1086,16 +1110,16 @@ public class TaskManagementServiceTest {
         assertThat(rrDto.getWeekdays()).containsExactlyInAnyOrder(0, 2, 4);
         assertThat(rrDto.getAssignmentType()).isEqualTo(AssignmentType.RoundRobin);
         assertThat(rrDto.getFixedUserId()).isNull();
-        assertThat(rrDto.getRrCursor()).isEqualTo(0);
         assertThat(rrDto.getRoundRobinUsers())
                 .extracting(TodoListMemberResponse::getUserId, TodoListMemberResponse::getLogin)
-                .containsExactlyInAnyOrder(
+                .containsExactly(
                         tuple(cand1, "user1"),
                         tuple(cand2, "user2")
                 );
         assertThat(rrDto.getWeekdayAssignees()).isNull();
 
         var byWDto = result.stream().filter(x -> x.getId().equals(byWTaskId)).findFirst().orElseThrow();
+        assertThat(fixedDto.getStartDate()).isEqualTo(startDate);
         assertThat(byWDto.getTitle()).isEqualTo("C byweekday");
         assertThat(byWDto.getRecurrenceType()).isEqualTo(RecurrenceType.WeeklyByDays);
         assertThat(byWDto.getIntervalDays()).isNull();
@@ -1103,7 +1127,6 @@ public class TaskManagementServiceTest {
         assertThat(byWDto.getWeekdays()).containsExactlyInAnyOrder(0, 2, 4);
         assertThat(byWDto.getAssignmentType()).isEqualTo(AssignmentType.ByWeekday);
         assertThat(byWDto.getFixedUserId()).isNull();
-        assertThat(byWDto.getRrCursor()).isNull();
         assertThat(byWDto.getRoundRobinUsers()).isNull();
         assertThat(byWDto.getWeekdayAssignees())
                 .containsEntry(0, mon)
@@ -1190,7 +1213,6 @@ public class TaskManagementServiceTest {
         Task saved = captor.getValue();
         assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.FixedUser);
         assertThat(saved.getFixedUserId()).isEqualTo(newFixed);
-        assertThat(saved.getRrCursor()).isNull();
 
         verify(taskAssignmentCandidateRepository, never()).save(any());
         verify(taskWeekdayAssigneeRepository, never()).save(any());
@@ -1223,15 +1245,18 @@ public class TaskManagementServiceTest {
         Task saved = taskCaptor.getValue();
         assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.RoundRobin);
         assertThat(saved.getFixedUserId()).isNull();
-        assertThat(saved.getRrCursor()).isEqualTo(0);
 
         ArgumentCaptor<TaskAssignmentCandidate> cCaptor = ArgumentCaptor.forClass(TaskAssignmentCandidate.class);
         verify(taskAssignmentCandidateRepository, times(2)).save(cCaptor.capture());
         assertThat(cCaptor.getAllValues())
-                .extracting(x -> x.getId().getTaskId(), x -> x.getId().getUserId())
-                .containsExactlyInAnyOrder(
-                        tuple(taskId, c1),
-                        tuple(taskId, c2)
+                .extracting(
+                        x -> x.getId().getTaskId(),
+                        x -> x.getId().getUserId(),
+                        TaskAssignmentCandidate::getPosition
+                )
+                .containsExactly(
+                        tuple(taskId, c1, 0),
+                        tuple(taskId, c2, 1)
                 );
 
         verify(taskWeekdayAssigneeRepository, never()).save(any());
@@ -1266,7 +1291,6 @@ public class TaskManagementServiceTest {
         Task saved = taskCaptor.getValue();
         assertThat(saved.getAssignmentType()).isEqualTo(AssignmentType.ByWeekday);
         assertThat(saved.getFixedUserId()).isNull();
-        assertThat(saved.getRrCursor()).isNull();
 
         ArgumentCaptor<TaskWeekdayAssignee> aCaptor = ArgumentCaptor.forClass(TaskWeekdayAssignee.class);
         verify(taskWeekdayAssigneeRepository, times(7)).save(aCaptor.capture());
@@ -1828,7 +1852,6 @@ public class TaskManagementServiceTest {
                 .intervalDays(3)
                 .assignmentType(AssignmentType.FixedUser)
                 .fixedUserId(UUID.randomUUID())
-                .rrCursor(null)
                 .build();
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(t));

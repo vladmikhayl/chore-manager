@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import ru.vladmikhayl.task_management.entity.AssignmentType;
 import ru.vladmikhayl.task_management.entity.RecurrenceType;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +22,9 @@ import java.util.UUID;
 public class TaskResponse {
     @Schema(description = "ID задачи")
     private UUID id;
+
+    @Schema(description = "Дата начала действия задачи", example = "2026-03-07")
+    private LocalDate startDate;
 
     @Schema(description = "ID списка дел")
     private UUID listId;
@@ -51,7 +55,4 @@ public class TaskResponse {
 
     @Schema(description = "Исполнитель по дням недели для assignmentType = ByWeekday", nullable = true)
     private Map<Integer, UUID> weekdayAssignees;
-
-    @Schema(description = "Текущий курсор для RoundRobin", example = "0", nullable = true)
-    private Integer rrCursor;
 }

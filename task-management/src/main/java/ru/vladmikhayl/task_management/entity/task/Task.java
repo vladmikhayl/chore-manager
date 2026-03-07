@@ -5,6 +5,7 @@ import lombok.*;
 import ru.vladmikhayl.task_management.entity.AssignmentType;
 import ru.vladmikhayl.task_management.entity.RecurrenceType;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Getter
@@ -18,6 +19,9 @@ public class Task {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @Column(name = "start_date", nullable = false)
+    private LocalDate startDate;
 
     @Column(name = "list_id", nullable = false)
     private UUID listId;
@@ -41,7 +45,4 @@ public class Task {
 
     @Column(name = "fixed_user_id")
     private UUID fixedUserId;
-
-    @Column(name = "rr_cursor")
-    private Integer rrCursor;
 }

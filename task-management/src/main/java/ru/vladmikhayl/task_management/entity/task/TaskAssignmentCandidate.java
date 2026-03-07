@@ -1,5 +1,6 @@
 package ru.vladmikhayl.task_management.entity.task;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -15,4 +16,7 @@ import lombok.*;
 public class TaskAssignmentCandidate {
     @EmbeddedId
     private TaskAssignmentCandidateId id;
+
+    @Column(name = "position", nullable = false)
+    private Integer position;
 }

@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface TaskAssignmentCandidateRepository extends JpaRepository<TaskAssignmentCandidate, TaskAssignmentCandidateId> {
-    List<TaskAssignmentCandidate> findAllById_TaskId(UUID taskId);
+    List<TaskAssignmentCandidate> findAllById_TaskIdOrderByPositionAsc(UUID taskId);
 
     void deleteAllById_TaskId(UUID taskId);
 
