@@ -613,6 +613,66 @@ public class TaskManagementIntegrationTest {
         getListsAndExpect200_AndExpectListsSize(userB, 1);
     }
 
+    @Test
+    void taskCompletionsFlow_putThenGetThenDelete() throws Exception {
+        UUID owner = UUID.randomUUID();
+        UUID userB = UUID.randomUUID();
+
+        when(identityClient.getUserLogin(owner)).thenReturn(ResponseEntity.ok("owner_login"));
+        when(identityClient.getUserLogin(userB)).thenReturn(ResponseEntity.ok("userB_login"));
+
+        createListAndExpect201(owner, "Домашние дела");
+        String listId = getListsAndExpect200_AndGetFirstListId(owner);
+
+        String token = createInviteAndExpect201(owner, listId);
+        acceptInviteAndExpect200(userB, token);
+
+        CreateTaskRequest req = CreateTaskRequest.builder()
+                .title("Вынести мусор")
+                .recurrenceType(RecurrenceType.EveryNdays)
+                .intervalDays(3)
+                .assignmentType(AssignmentType.FixedUser)
+                .fixedUserId(owner)
+                .build();
+
+        String taskId = createTaskAndExpect201_AndGetId(owner, listId, req);
+
+        String completedDate = "2026-03-05";
+        String anotherDate = "2026-03-06";
+
+        getTaskCompletionAndExpect200(userB, taskId, completedDate)
+                .andExpect(jsonPath("$.date").value(completedDate))
+                .andExpect(jsonPath("$.completed").value(false))
+                .andExpect(jsonPath("$.completedByUserId").doesNotExist())
+                .andExpect(jsonPath("$.completedByLogin").doesNotExist())
+                .andExpect(jsonPath("$.completedAt").doesNotExist());
+
+        completeTaskAndExpect200(userB, taskId, completedDate);
+
+        getTaskCompletionAndExpect200(owner, taskId, completedDate)
+                .andExpect(jsonPath("$.date").value(completedDate))
+                .andExpect(jsonPath("$.completed").value(true))
+                .andExpect(jsonPath("$.completedByUserId").value(userB.toString()))
+                .andExpect(jsonPath("$.completedByLogin").value("userB_login"))
+                .andExpect(jsonPath("$.completedAt").exists());
+
+        getTaskCompletionAndExpect200(owner, taskId, anotherDate)
+                .andExpect(jsonPath("$.date").value(anotherDate))
+                .andExpect(jsonPath("$.completed").value(false))
+                .andExpect(jsonPath("$.completedByUserId").doesNotExist())
+                .andExpect(jsonPath("$.completedByLogin").doesNotExist())
+                .andExpect(jsonPath("$.completedAt").doesNotExist());
+
+        deleteTaskCompletionAndExpect200(owner, taskId, completedDate);
+
+        getTaskCompletionAndExpect200(owner, taskId, completedDate)
+                .andExpect(jsonPath("$.date").value(completedDate))
+                .andExpect(jsonPath("$.completed").value(false))
+                .andExpect(jsonPath("$.completedByUserId").doesNotExist())
+                .andExpect(jsonPath("$.completedByLogin").doesNotExist())
+                .andExpect(jsonPath("$.completedAt").doesNotExist());
+    }
+
     private ResultActions getListsAndExpect200(UUID userId) throws Exception {
         return mockMvc.perform(get("/api/v1/lists")
                 .header("X-User-Id", userId.toString()))
@@ -715,5 +775,35 @@ public class TaskManagementIntegrationTest {
             }
         }
         throw new AssertionError("Task with id=" + taskId + " not found in response: " + tasksArray);
+    }
+
+    private ResultActions getTaskCompletion(UUID userId, String taskId, String date) throws Exception {
+        return mockMvc.perform(get("/api/v1/tasks/{taskId}/completions/{date}", taskId, date)
+                .header("X-User-Id", userId.toString()));
+    }
+
+    private ResultActions getTaskCompletionAndExpect200(UUID userId, String taskId, String date) throws Exception {
+        return getTaskCompletion(userId, taskId, date)
+                .andExpect(status().isOk());
+    }
+
+    private ResultActions completeTask(UUID userId, String taskId, String date) throws Exception {
+        return mockMvc.perform(put("/api/v1/tasks/{taskId}/completions/{date}", taskId, date)
+                .header("X-User-Id", userId.toString()));
+    }
+
+    private void completeTaskAndExpect200(UUID userId, String taskId, String date) throws Exception {
+        completeTask(userId, taskId, date)
+                .andExpect(status().isOk());
+    }
+
+    private ResultActions deleteTaskCompletion(UUID userId, String taskId, String date) throws Exception {
+        return mockMvc.perform(delete("/api/v1/tasks/{taskId}/completions/{date}", taskId, date)
+                .header("X-User-Id", userId.toString()));
+    }
+
+    private void deleteTaskCompletionAndExpect200(UUID userId, String taskId, String date) throws Exception {
+        deleteTaskCompletion(userId, taskId, date)
+                .andExpect(status().isOk());
     }
 }
