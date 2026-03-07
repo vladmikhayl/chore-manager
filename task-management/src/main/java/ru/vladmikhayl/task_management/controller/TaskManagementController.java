@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,10 +16,7 @@ import ru.vladmikhayl.task_management.dto.request.AcceptInviteRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTaskRequest;
 import ru.vladmikhayl.task_management.dto.request.CreateTodoListRequest;
 import ru.vladmikhayl.task_management.dto.request.UpdateAssignmentRuleRequest;
-import ru.vladmikhayl.task_management.dto.response.CreateInviteResponse;
-import ru.vladmikhayl.task_management.dto.response.TaskResponse;
-import ru.vladmikhayl.task_management.dto.response.TodoListDetailsResponse;
-import ru.vladmikhayl.task_management.dto.response.TodoListShortResponse;
+import ru.vladmikhayl.task_management.dto.response.*;
 import ru.vladmikhayl.task_management.service.TaskManagementService;
 
 import java.time.LocalDate;
@@ -206,9 +204,24 @@ public class TaskManagementController {
     public ResponseEntity<Void> completeTask(
             @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
             @PathVariable UUID taskId,
-            @PathVariable LocalDate date
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         taskManagementService.completeTask(userId, taskId, date);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/tasks/{taskId}/completions/{date}")
+    @Operation(summary = "Получить статус выполнения задачи за указанную дату")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Успешно"),
+            @ApiResponse(responseCode = "403", description = "Пользователь не состоит в списке", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Задача не найдена", content = @Content)
+    })
+    public ResponseEntity<TaskCompletionStatusResponse> getTaskCompletion(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @PathVariable UUID taskId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return ResponseEntity.ok(taskManagementService.getTaskCompletion(userId, taskId, date));
     }
 }

@@ -1644,6 +1644,90 @@ public class TaskManagementServiceTest {
                 .isEqualTo(LocalDateTime.ofInstant(now, ZoneOffset.UTC));
     }
 
+    @Test
+    void getTaskCompletion_taskNotFound_throwsNotFound() {
+        UUID taskId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 3, 5);
+
+        stubTaskNotFound(taskId);
+
+        assertThatThrownBy(() -> taskManagementService.getTaskCompletion(USER_ID, taskId, date))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Задача не найдена");
+    }
+
+    @Test
+    void getTaskCompletion_userNotMember_throwsForbidden() {
+        UUID taskId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 3, 5);
+
+        stubTaskFound(taskId, LIST_ID);
+        stubUserIsNotMember(LIST_ID, USER_ID);
+
+        assertThatThrownBy(() -> taskManagementService.getTaskCompletion(USER_ID, taskId, date))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    var rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                    assertThat(rse.getReason()).contains("Вы не состоите в этом списке дел");
+                });
+    }
+
+    @Test
+    void getTaskCompletion_completionNotExists_returnsCompletedFalse() {
+        UUID taskId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 3, 5);
+
+        stubTaskFound(taskId, LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        TaskCompletionId id = new TaskCompletionId(taskId, date);
+        when(taskCompletionRepository.findById(id)).thenReturn(Optional.empty());
+
+        var result = taskManagementService.getTaskCompletion(USER_ID, taskId, date);
+
+        assertThat(result.getDate()).isEqualTo(date);
+        assertThat(result.isCompleted()).isFalse();
+        assertThat(result.getCompletedByUserId()).isNull();
+        assertThat(result.getCompletedByLogin()).isNull();
+        assertThat(result.getCompletedAt()).isNull();
+    }
+
+    @Test
+    void getTaskCompletion_completionExists_returnsCompletedTrue() {
+        UUID taskId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 3, 5);
+        UUID completedByUserId = UUID.randomUUID();
+        LocalDateTime completedAt = LocalDateTime.of(2026, 3, 5, 10, 15, 30);
+
+        stubTaskFound(taskId, LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        TaskCompletionId id = new TaskCompletionId(taskId, date);
+        TaskCompletion completion = TaskCompletion.builder()
+                .id(id)
+                .completedByUserId(completedByUserId)
+                .completedAt(completedAt)
+                .build();
+
+        when(taskCompletionRepository.findById(id)).thenReturn(Optional.of(completion));
+        when(listMemberRepository.findById_ListIdAndId_UserId(LIST_ID, completedByUserId))
+                .thenReturn(Optional.of(
+                        ListMember.builder()
+                                .id(new ListMemberId(LIST_ID, completedByUserId))
+                                .login("petya")
+                                .build()
+                ));
+
+        var result = taskManagementService.getTaskCompletion(USER_ID, taskId, date);
+
+        assertThat(result.getDate()).isEqualTo(date);
+        assertThat(result.isCompleted()).isTrue();
+        assertThat(result.getCompletedByUserId()).isEqualTo(completedByUserId);
+        assertThat(result.getCompletedByLogin()).isEqualTo("petya");
+        assertThat(result.getCompletedAt()).isEqualTo(completedAt);
+    }
+
     private void stubListExists(UUID listId) {
         when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).build()));
     }

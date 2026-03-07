@@ -483,6 +483,44 @@ public class TaskManagementService {
         taskCompletionRepository.save(completion);
     }
 
+    @Transactional
+    public TaskCompletionStatusResponse getTaskCompletion(UUID userId, UUID taskId, LocalDate date) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Задача не найдена"));
+
+        UUID listId = task.getListId();
+
+        if (!listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Вы не состоите в этом списке дел");
+        }
+
+        TaskCompletionId completionId = new TaskCompletionId(taskId, date);
+
+        Optional<TaskCompletion> completionOptional = taskCompletionRepository.findById(completionId);
+
+        if (completionOptional.isEmpty()) {
+            return TaskCompletionStatusResponse.builder()
+                    .date(date)
+                    .completed(false)
+                    .build();
+        }
+
+        TaskCompletion completion = completionOptional.get();
+
+        UUID completedByUserId = completion.getCompletedByUserId();
+
+        ListMember member = listMemberRepository.findById_ListIdAndId_UserId(listId, completedByUserId)
+                .orElseThrow(() -> new EntityNotFoundException("Пользователь, отметивший выполнение, не найден среди участников списка"));
+
+        return TaskCompletionStatusResponse.builder()
+                .date(date)
+                .completed(true)
+                .completedByUserId(completedByUserId)
+                .completedByLogin(member.getLogin())
+                .completedAt(completion.getCompletedAt())
+                .build();
+    }
+
     private void validateTaskRecurrenceRule(CreateTaskRequest request) {
         if (request.getRecurrenceType() == RecurrenceType.EveryNdays) {
             if (request.getIntervalDays() == null) {
