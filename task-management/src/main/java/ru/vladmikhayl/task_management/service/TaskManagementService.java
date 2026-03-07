@@ -521,6 +521,20 @@ public class TaskManagementService {
                 .build();
     }
 
+    @Transactional
+    public void deleteTaskCompletion(UUID userId, UUID taskId, LocalDate date) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Задача не найдена"));
+
+        UUID listId = task.getListId();
+
+        if (!listMemberRepository.existsById_ListIdAndId_UserId(listId, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Вы не состоите в этом списке дел");
+        }
+
+        taskCompletionRepository.deleteById(new TaskCompletionId(taskId, date));
+    }
+
     private void validateTaskRecurrenceRule(CreateTaskRequest request) {
         if (request.getRecurrenceType() == RecurrenceType.EveryNdays) {
             if (request.getIntervalDays() == null) {

@@ -224,4 +224,20 @@ public class TaskManagementController {
     ) {
         return ResponseEntity.ok(taskManagementService.getTaskCompletion(userId, taskId, date));
     }
+
+    @DeleteMapping("/tasks/{taskId}/completions/{date}")
+    @Operation(summary = "Снять отметку выполнения задачи за дату")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Отметка выполнения удалена"),
+            @ApiResponse(responseCode = "403", description = "Пользователь не состоит в списке", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Задача не найдена", content = @Content)
+    })
+    public ResponseEntity<Void> deleteTaskCompletion(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId,
+            @PathVariable UUID taskId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        taskManagementService.deleteTaskCompletion(userId, taskId, date);
+        return ResponseEntity.ok().build();
+    }
 }

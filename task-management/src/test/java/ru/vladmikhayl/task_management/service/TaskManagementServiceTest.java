@@ -1728,6 +1728,48 @@ public class TaskManagementServiceTest {
         assertThat(result.getCompletedAt()).isEqualTo(completedAt);
     }
 
+    @Test
+    void deleteTaskCompletion_taskNotFound_throwsNotFound() {
+        UUID taskId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 3, 5);
+
+        stubTaskNotFound(taskId);
+
+        assertThatThrownBy(() -> taskManagementService.deleteTaskCompletion(USER_ID, taskId, date))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Задача не найдена");
+
+        verify(taskCompletionRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteTaskCompletion_userNotMember_throwsForbidden() {
+        UUID taskId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 3, 5);
+
+        stubTaskFound(taskId, LIST_ID);
+        stubUserIsNotMember(LIST_ID, USER_ID);
+
+        assertThatThrownBy(() -> taskManagementService.deleteTaskCompletion(USER_ID, taskId, date))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Вы не состоите в этом списке дел");
+
+        verify(taskCompletionRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteTaskCompletion_success_deletesById() {
+        UUID taskId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 3, 5);
+
+        stubTaskFound(taskId, LIST_ID);
+        stubUserIsMember(LIST_ID, USER_ID);
+
+        taskManagementService.deleteTaskCompletion(USER_ID, taskId, date);
+
+        verify(taskCompletionRepository).deleteById(new TaskCompletionId(taskId, date));
+    }
+
     private void stubListExists(UUID listId) {
         when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).build()));
     }
