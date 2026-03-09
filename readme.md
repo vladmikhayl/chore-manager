@@ -8,7 +8,7 @@
 
 **Backend:** Java, Spring Boot, PostgreSQL, Kafka
 
-**Frontend:** JavaScript, React
+**Frontend:** TypeScript, React, Tailwind CSS
 
 **Инфраструктура:** Docker
 
@@ -40,7 +40,10 @@
 
 ## 🚀 Запуск
 
-Для локального запуска нужно сначала поднять окружение командой `docker compose up -d`, и затем последовательно запустить сервисы: `config-server` → `discovery` → `остальные микросервисы`
+Для локального запуска нужно:
+- Поднять **окружение** командой `docker compose up -d`
+- Последовательно запустить сервисы **бэкенда** (например, через IDE): `config-server` → `discovery` → `остальные микросервисы`
+- Запустить **фронтенд** через команду `npm run dev` в папке `frontend`
 
 Все запросы на бэкенд отправляются на Gateway: `http://localhost:8080/api/v1/...`
 
