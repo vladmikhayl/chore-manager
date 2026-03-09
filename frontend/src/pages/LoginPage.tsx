@@ -1,18 +1,65 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, type SyntheticEvent } from "react";
+import toast from "react-hot-toast";
 import { AuthLayout } from "../components/auth/AuthLayout";
 import { AuthCard } from "../components/auth/AuthCard";
 import { TextInput } from "../components/shared/TextInput";
 import { PrimaryButton } from "../components/shared/PrimaryButton";
+import { login as loginRequest } from "../api/authApi";
+import { parseApiError } from "../utils/parseApiError";
+import { setAccessToken } from "../utils/authStorage";
 
 export function LoginPage() {
+  const navigate = useNavigate();
+
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
 
-  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+  const [loginError, setLoginError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    console.log("login submit", { login, password });
+    const trimmedLogin = login.trim();
+    let hasErrors = false;
+
+    setLoginError("");
+    setPasswordError("");
+
+    if (!trimmedLogin) {
+      setLoginError("Введите логин");
+      hasErrors = true;
+    }
+
+    if (!password) {
+      setPasswordError("Введите пароль");
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await loginRequest({
+        login: trimmedLogin,
+        password,
+      });
+
+      setAccessToken(response.token);
+      toast.success("Вы успешно вошли в систему");
+
+      navigate("/home", { replace: true });
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      toast.error(parsedError.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -26,7 +73,15 @@ export function LoginPage() {
             autoComplete="username"
             placeholder="Введите логин"
             value={login}
-            onChange={(e) => setLogin(e.target.value)}
+            disabled={isSubmitting}
+            onChange={(e) => {
+              setLogin(e.target.value);
+
+              if (loginError) {
+                setLoginError("");
+              }
+            }}
+            error={loginError}
           />
 
           <TextInput
@@ -36,10 +91,20 @@ export function LoginPage() {
             autoComplete="current-password"
             placeholder="Введите пароль"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            disabled={isSubmitting}
+            onChange={(e) => {
+              setPassword(e.target.value);
+
+              if (passwordError) {
+                setPasswordError("");
+              }
+            }}
+            error={passwordError}
           />
 
-          <PrimaryButton type="submit">Войти</PrimaryButton>
+          <PrimaryButton type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Вход..." : "Войти"}
+          </PrimaryButton>
         </form>
 
         <p className="mt-6 text-sm text-slate-600">
