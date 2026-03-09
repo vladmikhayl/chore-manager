@@ -1,6 +1,7 @@
 package ru.vladmikhayl.task_management.exception;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,7 +11,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -58,13 +58,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
-        List<String> errors = new ArrayList<>();
+        List<String> errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .toList();
 
-        ex.getBindingResult().getFieldErrors().forEach(fieldError ->
-                errors.add(fieldError.getDefaultMessage()));
+        String firstError = errors.isEmpty()
+                ? "Переданы некорректные данные"
+                : errors.get(0);
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 Map.of(
+                        "error", firstError,
                         "errors", errors,
                         "timestamp", LocalDateTime.now()
                 )

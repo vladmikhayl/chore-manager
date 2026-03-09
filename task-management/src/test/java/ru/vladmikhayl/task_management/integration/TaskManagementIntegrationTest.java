@@ -302,12 +302,14 @@ public class TaskManagementIntegrationTest {
 
         String token = UUID.randomUUID().toString();
 
+        Instant instant = Instant.parse("2026-03-06T00:00:00Z");
+
         listInviteRepository.save(
                 ListInvite.builder()
                         .listId(UUID.fromString(listId))
                         .token(token)
-                        .createdAt(Instant.now().minus(2, ChronoUnit.DAYS))
-                        .expiresAt(Instant.now().minus(1, ChronoUnit.DAYS))
+                        .createdAt(instant.minus(2, ChronoUnit.DAYS))
+                        .expiresAt(instant.minus(1, ChronoUnit.DAYS))
                         .build()
         );
 

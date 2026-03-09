@@ -77,6 +77,7 @@ public class IdentityControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists())
                 .andExpect(jsonPath("$.errors").isArray())
                 .andExpect(jsonPath("$.errors[0]").exists())
                 .andExpect(jsonPath("$.timestamp").exists());
@@ -95,6 +96,7 @@ public class IdentityControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists())
                 .andExpect(jsonPath("$.errors").isArray())
                 .andExpect(jsonPath("$.errors[0]").exists())
                 .andExpect(jsonPath("$.timestamp").exists());
@@ -150,6 +152,7 @@ public class IdentityControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists())
                 .andExpect(jsonPath("$.errors").isArray())
                 .andExpect(jsonPath("$.errors[0]").exists())
                 .andExpect(jsonPath("$.timestamp").exists());
@@ -168,6 +171,7 @@ public class IdentityControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists())
                 .andExpect(jsonPath("$.errors").isArray())
                 .andExpect(jsonPath("$.errors[0]").exists())
                 .andExpect(jsonPath("$.timestamp").exists());
