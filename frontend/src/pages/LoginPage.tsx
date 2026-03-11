@@ -53,7 +53,7 @@ export function LoginPage() {
       setAccessToken(response.token);
       toast.success("Вы успешно вошли в аккаунт");
 
-      navigate("/home", { replace: true });
+      navigate("/tasks", { replace: true });
     } catch (error) {
       const parsedError = parseApiError(error);
       toast.error(parsedError.message);
