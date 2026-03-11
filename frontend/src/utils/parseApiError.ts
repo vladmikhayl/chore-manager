@@ -11,16 +11,16 @@ export function parseApiError(error: unknown): ParsedApiError {
   const status = error.response?.status;
   const responseData = error.response?.data;
 
+  if (!error.response || status === 503) {
+    return {
+      message: "Не удалось подключиться к серверу",
+    };
+  }
+
   if (responseData?.error) {
     return {
       status,
       message: responseData.error,
-    };
-  }
-
-  if (!error.response || status === 503) {
-    return {
-      message: "Не удалось подключиться к серверу",
     };
   }
 
