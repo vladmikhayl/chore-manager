@@ -3,7 +3,7 @@ import { removeAccessToken } from "../utils/authStorage";
 import { PrimaryButton } from "../components/shared/PrimaryButton";
 import toast from "react-hot-toast";
 
-export function HomePage() {
+export function TasksPage() {
   const navigate = useNavigate();
 
   function handleLogout() {

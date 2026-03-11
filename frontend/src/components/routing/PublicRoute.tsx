@@ -10,7 +10,7 @@ export function PublicRoute({ children }: PublicRouteProps) {
   const accessToken = getAccessToken();
 
   if (accessToken) {
-    return <Navigate to="/home" replace />;
+    return <Navigate to="/tasks" replace />;
   }
 
   return <>{children}</>;

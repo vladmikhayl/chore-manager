@@ -3,13 +3,13 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { PublicRoute } from "./components/routing/PublicRoute";
 import { PrivateRoute } from "./components/routing/PrivateRoute";
-import { HomePage } from "./pages/HomePage";
+import { TasksPage } from "./pages/TasksPage";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/" element={<Navigate to="/tasks" replace />} />
 
         <Route
           path="/login"
@@ -30,15 +30,15 @@ export default function App() {
         />
 
         <Route
-          path="/home"
+          path="/tasks"
           element={
             <PrivateRoute>
-              <HomePage />
+              <TasksPage />
             </PrivateRoute>
           }
         />
 
-        <Route path="*" element={<Navigate to="/home" replace />} />
+        <Route path="*" element={<Navigate to="/tasks" replace />} />
       </Routes>
     </BrowserRouter>
   );
