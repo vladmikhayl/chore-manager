@@ -1,50 +1,99 @@
-import { useNavigate } from "react-router-dom";
-import { removeAccessToken } from "../utils/authStorage";
-import { PrimaryButton } from "../components/shared/PrimaryButton";
-import toast from "react-hot-toast";
+import { AppLayout } from "../components/AppLayout";
+
+const mockTasks = [
+  {
+    id: 1,
+    title: "Вынести мусор",
+    listName: "Дом",
+    assignee: "Вы",
+    dueLabel: "Сегодня",
+  },
+  {
+    id: 2,
+    title: "Купить продукты",
+    listName: "Покупки",
+    assignee: "Вы",
+    dueLabel: "Сегодня",
+  },
+  {
+    id: 3,
+    title: "Помыть посуду",
+    listName: "Квартира",
+    assignee: "Анна",
+    dueLabel: "Сегодня",
+  },
+];
 
 export function TasksPage() {
-  const navigate = useNavigate();
-
-  function handleLogout() {
-    removeAccessToken();
-    navigate("/login", { replace: true });
-    toast.success("Вы успешно вышли из аккаунта");
-  }
-
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
-      <div className="mx-auto max-w-5xl">
-        <div className="rounded-3xl bg-white p-8 shadow-xl">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="inline-flex rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700">
-                Chore Manager
-              </div>
-
-              <h1 className="mt-4 text-3xl font-bold text-slate-900">
-                Главная страница
-              </h1>
-
-              <p className="mt-3 max-w-2xl text-slate-600">
-                Вы успешно вошли в систему. Здесь позже будет основной интерфейс
-                приложения: списки дел, задачи, распределение обязанностей и
-                профиль.
-              </p>
-            </div>
-
-            <div className="w-40">
-              <PrimaryButton type="button" onClick={handleLogout}>
-                Выйти
-              </PrimaryButton>
-            </div>
+    <AppLayout
+      title="Задачи"
+      description="Здесь отображаются ваши задачи из всех списков дел на выбранную дату."
+    >
+      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">На сегодня</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              3 задачи требуют внимания
+            </p>
           </div>
 
-          <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-slate-600">
-            Заглушка приватной страницы
-          </div>
+          <button
+            type="button"
+            className="cursor-pointer rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          >
+            Создать задачу
+          </button>
         </div>
-      </div>
-    </div>
+
+        <div className="mt-6 grid gap-4">
+          {mockTasks.map((task) => (
+            <article
+              key={task.id}
+              className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300 hover:bg-slate-100"
+            >
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700">
+                      {task.listName}
+                    </span>
+
+                    <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
+                      {task.dueLabel}
+                    </span>
+                  </div>
+
+                  <h3 className="mt-3 text-lg font-semibold text-slate-900">
+                    {task.title}
+                  </h3>
+
+                  <p className="mt-1 text-sm text-slate-600">
+                    Ответственный: {task.assignee}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    className="cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Подробнее
+                  </button>
+
+                  <button
+                    type="button"
+                    className="cursor-pointer rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                  >
+                    Выполнено
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </AppLayout>
   );
 }
