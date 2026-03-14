@@ -113,7 +113,7 @@ public class TaskManagementIntegrationTest {
                         .contentType(APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("У вас уже есть список с таким названием"))
+                .andExpect(jsonPath("$.error").value("У вас уже есть список с таким названием."))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         getListsAndExpect200(userId)

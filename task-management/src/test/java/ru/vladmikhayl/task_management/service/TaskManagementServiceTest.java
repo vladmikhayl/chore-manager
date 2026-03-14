@@ -201,7 +201,7 @@ public class TaskManagementServiceTest {
 
         assertThatThrownBy(() -> taskManagementService.createList(userId, req))
                 .isInstanceOf(DataIntegrityViolationException.class)
-                .hasMessage("У вас уже есть список с таким названием");
+                .hasMessage("У вас уже есть список с таким названием.");
 
         verify(todoListRepository, never()).save(any());
         verify(listMemberRepository, never()).save(any());
