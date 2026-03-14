@@ -29,6 +29,9 @@ public class TaskResponse {
     @Schema(description = "ID списка дел")
     private UUID listId;
 
+    @Schema(description = "Название списка дел")
+    private String listTitle;
+
     @Schema(description = "Название задачи", example = "Вынести мусор")
     private String title;
 
@@ -55,4 +58,7 @@ public class TaskResponse {
 
     @Schema(description = "Исполнитель по дням недели для assignmentType = ByWeekday", nullable = true)
     private Map<Integer, UUID> weekdayAssignees;
+
+    @Schema(description = "Выполнена ли задача за указанную дату")
+    private boolean completed;
 }

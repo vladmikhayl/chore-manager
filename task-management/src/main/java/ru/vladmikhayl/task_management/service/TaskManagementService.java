@@ -518,7 +518,13 @@ public class TaskManagementService {
                 continue;
             }
 
-            result.add(buildTaskResponse(task));
+            TaskResponse response = buildTaskResponse(task);
+
+            TaskCompletionId completionId = new TaskCompletionId(task.getId(), date);
+            Optional<TaskCompletion> completionOptional = taskCompletionRepository.findById(completionId);
+            response.setCompleted(completionOptional.isPresent());
+
+            result.add(response);
         }
 
         return result;
@@ -595,10 +601,14 @@ public class TaskManagementService {
     }
 
     private TaskResponse buildTaskResponse(Task task) {
+        TodoList list = todoListRepository.findById(task.getListId())
+                .orElseThrow(() -> new EntityNotFoundException("Список не найден"));
+
         TaskResponse.TaskResponseBuilder dto = TaskResponse.builder()
                 .id(task.getId())
                 .startDate(task.getStartDate())
                 .listId(task.getListId())
+                .listTitle(list.getTitle())
                 .title(task.getTitle())
                 .recurrenceType(task.getRecurrenceType())
                 .intervalDays(task.getIntervalDays())

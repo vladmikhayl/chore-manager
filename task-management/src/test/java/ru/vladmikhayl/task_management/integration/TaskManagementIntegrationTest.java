@@ -362,6 +362,7 @@ public class TaskManagementIntegrationTest {
 
         // FixedUser task checks
         var fixedNode = findTaskById(tasksJson, fixedTaskId);
+        assertThat(fixedNode.get("listTitle").asText()).isEqualTo("Домашние дела");
         assertThat(fixedNode.get("title").asText()).isEqualTo("Вынести мусор");
         assertThat(fixedNode.get("recurrenceType").asText()).isEqualTo("EveryNdays");
         assertThat(fixedNode.get("intervalDays").asInt()).isEqualTo(3);
@@ -371,6 +372,7 @@ public class TaskManagementIntegrationTest {
 
         // RoundRobin task checks
         var rrNode = findTaskById(tasksJson, rrTaskId);
+        assertThat(fixedNode.get("listTitle").asText()).isEqualTo("Домашние дела");
         assertThat(rrNode.get("title").asText()).isEqualTo("Покупки");
         assertThat(rrNode.get("recurrenceType").asText()).isEqualTo("WeeklyByDays");
         assertThat(rrNode.get("weekdaysMask")).isNotNull();
@@ -783,14 +785,17 @@ public class TaskManagementIntegrationTest {
         assertTaskIdsExactly(userBDay3, byWeekdayTaskId);
 
         JsonNode fixedNode = findTaskById(ownerDay1, fixedTaskId);
+        assertThat(fixedNode.get("listTitle").asText()).isEqualTo("Домашние дела");
         assertThat(fixedNode.get("title").asText()).isEqualTo("Вынести мусор");
         assertThat(fixedNode.get("recurrenceType").asText()).isEqualTo("EveryNdays");
         assertThat(fixedNode.get("intervalDays").asInt()).isEqualTo(2);
         assertThat(fixedNode.get("assignmentType").asText()).isEqualTo("FixedUser");
         assertThat(fixedNode.get("fixedUserId").asText()).isEqualTo(owner.toString());
         assertThat(fixedNode.get("startDate").asText()).isNotBlank();
+        assertThat(fixedNode.get("completed").asBoolean()).isFalse();
 
         JsonNode rrNode = findTaskById(ownerDay1, rrTaskId);
+        assertThat(rrNode.get("listTitle").asText()).isEqualTo("Домашние дела");
         assertThat(rrNode.get("title").asText()).isEqualTo("Покупки");
         assertThat(rrNode.get("assignmentType").asText()).isEqualTo("RoundRobin");
         assertThat(rrNode.get("roundRobinUsers").isArray()).isTrue();
@@ -799,6 +804,7 @@ public class TaskManagementIntegrationTest {
         assertThat(rrNode.get("roundRobinUsers").get(0).get("login").asText()).isEqualTo("owner_login");
         assertThat(rrNode.get("roundRobinUsers").get(1).get("userId").asText()).isEqualTo(userB.toString());
         assertThat(rrNode.get("roundRobinUsers").get(1).get("login").asText()).isEqualTo("userB_login");
+        assertThat(rrNode.get("completed").asBoolean()).isFalse();
     }
 
     @Test
@@ -830,12 +836,18 @@ public class TaskManagementIntegrationTest {
                 .fixedUserId(user)
                 .build());
 
+        completeTaskAndExpect200(user, task2, "2026-03-08");
+
         JsonNode result = getTasksForDayAndExpect200_GetJson(user, "2026-03-08");
 
         assertTaskIdsExactly(result, task1, task2);
 
         assertThat(findTaskById(result, task1).get("listId").asText()).isEqualTo(list1);
+        assertThat(findTaskById(result, task1).get("listTitle").asText()).isEqualTo("Дом");
+        assertThat(findTaskById(result, task1).get("completed").asBoolean()).isFalse();
         assertThat(findTaskById(result, task2).get("listId").asText()).isEqualTo(list2);
+        assertThat(findTaskById(result, task2).get("listTitle").asText()).isEqualTo("Работа");
+        assertThat(findTaskById(result, task2).get("completed").asBoolean()).isTrue();
     }
 
     private ResultActions getListsAndExpect200(UUID userId) throws Exception {

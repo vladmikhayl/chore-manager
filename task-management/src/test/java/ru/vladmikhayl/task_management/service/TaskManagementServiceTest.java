@@ -998,7 +998,7 @@ public class TaskManagementServiceTest {
         UUID userId = UUID.randomUUID();
         UUID listId = UUID.randomUUID();
 
-        when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).build()));
+        when(todoListRepository.findById(listId)).thenReturn(Optional.of(TodoList.builder().id(listId).title("Тест").build()));
 
         stubUserIsMember(listId, userId);
 
@@ -1091,6 +1091,7 @@ public class TaskManagementServiceTest {
         assertThat(result).hasSize(3);
 
         var fixedDto = result.stream().filter(x -> x.getId().equals(fixedTaskId)).findFirst().orElseThrow();
+        assertThat(fixedDto.getListTitle()).isEqualTo("Тест");
         assertThat(fixedDto.getStartDate()).isEqualTo(startDate);
         assertThat(fixedDto.getTitle()).isEqualTo("A fixed");
         assertThat(fixedDto.getRecurrenceType()).isEqualTo(RecurrenceType.EveryNdays);
@@ -1103,7 +1104,8 @@ public class TaskManagementServiceTest {
         assertThat(fixedDto.getWeekdayAssignees()).isNull();
 
         var rrDto = result.stream().filter(x -> x.getId().equals(rrTaskId)).findFirst().orElseThrow();
-        assertThat(fixedDto.getStartDate()).isEqualTo(startDate);
+        assertThat(rrDto.getListTitle()).isEqualTo("Тест");
+        assertThat(rrDto.getStartDate()).isEqualTo(startDate);
         assertThat(rrDto.getTitle()).isEqualTo("B rr");
         assertThat(rrDto.getRecurrenceType()).isEqualTo(RecurrenceType.WeeklyByDays);
         assertThat(rrDto.getIntervalDays()).isNull();
@@ -1120,7 +1122,8 @@ public class TaskManagementServiceTest {
         assertThat(rrDto.getWeekdayAssignees()).isNull();
 
         var byWDto = result.stream().filter(x -> x.getId().equals(byWTaskId)).findFirst().orElseThrow();
-        assertThat(fixedDto.getStartDate()).isEqualTo(startDate);
+        assertThat(byWDto.getListTitle()).isEqualTo("Тест");
+        assertThat(byWDto.getStartDate()).isEqualTo(startDate);
         assertThat(byWDto.getTitle()).isEqualTo("C byweekday");
         assertThat(byWDto.getRecurrenceType()).isEqualTo(RecurrenceType.WeeklyByDays);
         assertThat(byWDto.getIntervalDays()).isNull();
@@ -1987,6 +1990,24 @@ public class TaskManagementServiceTest {
                         .login("other")
                         .build()));
 
+        when(todoListRepository.findById(listId1)).thenReturn(Optional.of(
+                TodoList.builder()
+                        .title("Список 1")
+                        .build()
+        ));
+        when(todoListRepository.findById(listId2)).thenReturn(Optional.of(
+                TodoList.builder()
+                        .title("Список 2")
+                        .build()
+        ));
+
+        when(taskCompletionRepository.findById(TaskCompletionId.builder().taskId(fixedTaskId).date(date).build()))
+                .thenReturn(Optional.empty());
+        when(taskCompletionRepository.findById(TaskCompletionId.builder().taskId(byWeekdayTaskId).date(date).build()))
+                .thenReturn(Optional.empty());
+        when(taskCompletionRepository.findById(TaskCompletionId.builder().taskId(rrTaskId).date(date).build()))
+                .thenReturn(Optional.of(TaskCompletion.builder().build()));
+
         var result = taskManagementService.getTasksForDay(userId, date);
 
         assertThat(result).hasSize(3);
@@ -1995,20 +2016,25 @@ public class TaskManagementServiceTest {
 
         var fixedDto = result.get(0);
         assertThat(fixedDto.getId()).isEqualTo(fixedTaskId);
+        assertThat(fixedDto.getListTitle()).isEqualTo("Список 1");
         assertThat(fixedDto.getTitle()).isEqualTo("A fixed");
         assertThat(fixedDto.getAssignmentType()).isEqualTo(AssignmentType.FixedUser);
         assertThat(fixedDto.getFixedUserId()).isEqualTo(userId);
+        assertThat(fixedDto.isCompleted()).isFalse();
 
         var byWeekdayDto = result.get(1);
         assertThat(byWeekdayDto.getId()).isEqualTo(byWeekdayTaskId);
+        assertThat(byWeekdayDto.getListTitle()).isEqualTo("Список 1");
         assertThat(byWeekdayDto.getTitle()).isEqualTo("B byweekday");
         assertThat(byWeekdayDto.getAssignmentType()).isEqualTo(AssignmentType.ByWeekday);
         assertThat(byWeekdayDto.getWeekdayAssignees())
                 .containsEntry(1, userId)
                 .containsEntry(3, otherUser);
+        assertThat(byWeekdayDto.isCompleted()).isFalse();
 
         var rrDto = result.get(2);
         assertThat(rrDto.getId()).isEqualTo(rrTaskId);
+        assertThat(rrDto.getListTitle()).isEqualTo("Список 2");
         assertThat(rrDto.getTitle()).isEqualTo("C rr");
         assertThat(rrDto.getAssignmentType()).isEqualTo(AssignmentType.RoundRobin);
         assertThat(rrDto.getRoundRobinUsers())
@@ -2017,6 +2043,7 @@ public class TaskManagementServiceTest {
                         tuple(userId, "me"),
                         tuple(otherUser, "other")
                 );
+        assertThat(rrDto.isCompleted()).isTrue();
     }
 
     @Test
@@ -2033,6 +2060,12 @@ public class TaskManagementServiceTest {
 
         when(listMemberRepository.findAllById_UserId(userId)).thenReturn(List.of(
                 ListMember.builder().id(new ListMemberId(listId, userId)).login("me").build()
+        ));
+
+        when(todoListRepository.findById(listId)).thenReturn(Optional.of(
+                TodoList.builder()
+                        .title("Список")
+                        .build()
         ));
 
         Task rrTask = Task.builder()
