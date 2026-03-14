@@ -10,6 +10,7 @@ export function parseApiError(error: unknown): ParsedApiError {
 
   const status = error.response?.status;
   const responseData = error.response?.data;
+  const errorMessage = responseData?.error;
 
   if (!error.response || status === 503) {
     return {
@@ -17,10 +18,24 @@ export function parseApiError(error: unknown): ParsedApiError {
     };
   }
 
-  if (responseData?.error) {
+  if (errorMessage?.startsWith("Method parameter")) {
     return {
       status,
-      message: responseData.error,
+      message: "Указано неверное значение",
+    };
+  }
+
+  if (status === 500) {
+    return {
+      status,
+      message: "Произошла внутренняя ошибка",
+    };
+  }
+
+  if (errorMessage) {
+    return {
+      status,
+      message: errorMessage,
     };
   }
 
