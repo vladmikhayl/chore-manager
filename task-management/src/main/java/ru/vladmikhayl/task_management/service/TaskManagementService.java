@@ -71,7 +71,7 @@ public class TaskManagementService {
         var title = request.getTitle().trim();
 
         if (todoListRepository.existsByOwnerUserIdAndTitle(userId, title)) {
-            throw new DataIntegrityViolationException("У вас уже есть список с таким названием");
+            throw new DataIntegrityViolationException("У вас уже есть список с таким названием.");
         }
 
         var list = TodoList.builder()

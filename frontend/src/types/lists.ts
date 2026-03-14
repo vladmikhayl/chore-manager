@@ -4,3 +4,7 @@ export type TodoListShortResponse = {
   membersCount: number;
   isOwner: boolean;
 };
+
+export type CreateTodoListRequest = {
+  title: string;
+};

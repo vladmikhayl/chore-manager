@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "../components/AppLayout";
 import { TodoListCard } from "../components/lists/TodoListCard";
-import { getLists } from "../api/listsApi";
+import { createList, getLists } from "../api/listsApi";
 import type { TodoListShortResponse } from "../types/lists";
 import { parseApiError } from "../utils/parseApiError";
+import { CreateListModal } from "../components/lists/CreateListModal";
 
 export function ListsPage() {
   const navigate = useNavigate();
@@ -12,6 +13,13 @@ export function ListsPage() {
   const [lists, setLists] = useState<TodoListShortResponse[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newListTitle, setNewListTitle] = useState("");
+  const [createErrorMessage, setCreateErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [isCreating, setIsCreating] = useState(false);
 
   const hasLoadedOnceRef = useRef(false);
 
@@ -42,6 +50,47 @@ export function ListsPage() {
     navigate(`/lists/${listId}`);
   }
 
+  function handleOpenCreateModal() {
+    setCreateErrorMessage(null);
+    setNewListTitle("");
+    setIsCreateModalOpen(true);
+  }
+
+  function handleCloseCreateModal() {
+    if (isCreating) {
+      return;
+    }
+
+    setIsCreateModalOpen(false);
+    setCreateErrorMessage(null);
+    setNewListTitle("");
+  }
+
+  async function handleCreateList() {
+    const trimmedTitle = newListTitle.trim();
+
+    if (!trimmedTitle) {
+      setCreateErrorMessage("Введите название списка дел.");
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      setCreateErrorMessage(null);
+
+      await createList({ title: trimmedTitle });
+
+      setIsCreateModalOpen(false);
+      setNewListTitle("");
+      await loadLists();
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      setCreateErrorMessage(parsedError.message);
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
   return (
     <AppLayout
       title="Списки дел"
@@ -49,10 +98,22 @@ export function ListsPage() {
     >
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <div className="flex flex-col gap-5">
-          <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            Всего списков дел:{" "}
-            <span className="font-semibold text-slate-900">{lists.length}</span>
-            .
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 sm:flex-1">
+              Всего списков дел:{" "}
+              <span className="font-semibold text-slate-900">
+                {lists.length}
+              </span>
+              .
+            </div>
+
+            <button
+              type="button"
+              onClick={handleOpenCreateModal}
+              className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-15 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+            >
+              Создать список
+            </button>
           </div>
 
           {isInitialLoading ? (
@@ -94,6 +155,17 @@ export function ListsPage() {
           )}
         </div>
       </section>
+
+      {isCreateModalOpen && (
+        <CreateListModal
+          title={newListTitle}
+          onTitleChange={setNewListTitle}
+          onClose={handleCloseCreateModal}
+          onSubmit={() => void handleCreateList()}
+          isSubmitting={isCreating}
+          errorMessage={createErrorMessage}
+        />
+      )}
     </AppLayout>
   );
 }
