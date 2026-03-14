@@ -491,7 +491,7 @@ public class TaskManagementService {
         LocalDate today = LocalDate.now(clock);
 
         if (date.isBefore(today)) {
-            throw new IllegalArgumentException("Дата не может быть меньше текущей");
+            throw new IllegalArgumentException("Нельзя выбрать дату в прошлом. Выберите сегодняшнюю дату или более позднюю.");
         }
 
         List<UUID> listIds = listMemberRepository.findAllById_UserId(userId).stream()

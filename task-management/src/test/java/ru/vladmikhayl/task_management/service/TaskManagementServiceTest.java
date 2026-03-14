@@ -1808,7 +1808,7 @@ public class TaskManagementServiceTest {
 
         assertThatThrownBy(() -> taskManagementService.getTasksForDay(userId, today.minusDays(1)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Дата не может быть меньше текущей");
+                .hasMessage("Нельзя выбрать дату в прошлом. Выберите сегодняшнюю дату или более позднюю.");
     }
 
     @Test
