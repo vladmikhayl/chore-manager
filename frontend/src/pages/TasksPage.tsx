@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppLayout } from "../components/AppLayout";
 import { TaskCard } from "../components/tasks/TaskCard";
 import {
@@ -35,8 +35,6 @@ export function TasksPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [processingTaskId, setProcessingTaskId] = useState<string | null>(null);
 
-  const hasLoadedOnceRef = useRef(false);
-
   const loadTasks = useCallback(async (date: string) => {
     try {
       setErrorMessage(null);
@@ -45,14 +43,10 @@ export function TasksPage() {
       const mappedTasks = response.map(mapTaskResponseToTaskListItem);
 
       setTasks(mappedTasks);
-      hasLoadedOnceRef.current = true;
     } catch (error) {
       const parsedError = parseApiError(error);
       setErrorMessage(parsedError.message);
-
-      if (!hasLoadedOnceRef.current) {
-        setTasks([]);
-      }
+      setTasks([]);
     } finally {
       setIsInitialLoading(false);
     }
@@ -142,7 +136,7 @@ export function TasksPage() {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
               Загрузка задач...
             </div>
-          ) : errorMessage && tasks.length === 0 ? (
+          ) : errorMessage ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">
               {errorMessage}
             </div>
@@ -155,25 +149,17 @@ export function TasksPage() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
-              {errorMessage && (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
-                  {errorMessage}
-                </div>
-              )}
-
-              <div className="grid gap-4">
-                {tasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    title={task.title}
-                    listTitle={task.listTitle}
-                    completed={task.completed}
-                    isToggleLoading={processingTaskId === task.id}
-                    onToggleCompleted={() => void handleToggleCompleted(task)}
-                  />
-                ))}
-              </div>
+            <div className="grid gap-4">
+              {tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  title={task.title}
+                  listTitle={task.listTitle}
+                  completed={task.completed}
+                  isToggleLoading={processingTaskId === task.id}
+                  onToggleCompleted={() => void handleToggleCompleted(task)}
+                />
+              ))}
             </div>
           )}
         </div>
