@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "../components/AppLayout";
 import { TaskCard } from "../components/tasks/TaskCard";
-import { getTasksForDay } from "../api/tasksApi";
+import {
+  completeTask,
+  deleteTaskCompletion,
+  getTasksForDay,
+} from "../api/tasksApi";
 import type { TaskListItem, TaskResponse } from "../types/tasks";
 import { parseApiError } from "../utils/parseApiError";
 
@@ -27,30 +31,68 @@ export function TasksPage() {
   const todayDate = useMemo(() => getTodayDateString(), []);
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [tasks, setTasks] = useState<TaskListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [processingTaskId, setProcessingTaskId] = useState<string | null>(null);
+
+  const hasLoadedOnceRef = useRef(false);
+
+  const loadTasks = useCallback(async (date: string) => {
+    try {
+      setErrorMessage(null);
+
+      const response = await getTasksForDay(date);
+      const mappedTasks = response.map(mapTaskResponseToTaskListItem);
+
+      setTasks(mappedTasks);
+      hasLoadedOnceRef.current = true;
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      setErrorMessage(parsedError.message);
+
+      if (!hasLoadedOnceRef.current) {
+        setTasks([]);
+      }
+    } finally {
+      setIsInitialLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function loadTasks() {
-      try {
-        setIsLoading(true);
-        setErrorMessage(null);
-
-        const response = await getTasksForDay(selectedDate);
-        const mappedTasks = response.map(mapTaskResponseToTaskListItem);
-
-        setTasks(mappedTasks);
-      } catch (error) {
-        const parsedError = parseApiError(error);
-        setErrorMessage(parsedError.message);
-        setTasks([]);
-      } finally {
-        setIsLoading(false);
-      }
+    if (!selectedDate) {
+      setTasks([]);
+      setErrorMessage(null);
+      setIsInitialLoading(false);
+      return;
     }
 
-    void loadTasks();
-  }, [selectedDate]);
+    void loadTasks(selectedDate);
+  }, [selectedDate, loadTasks]);
+
+  async function handleToggleCompleted(task: TaskListItem) {
+    if (!selectedDate) {
+      setErrorMessage("Сначала выберите дату.");
+      return;
+    }
+
+    try {
+      setProcessingTaskId(task.id);
+      setErrorMessage(null);
+
+      if (task.completed) {
+        await deleteTaskCompletion(task.id, selectedDate);
+      } else {
+        await completeTask(task.id, selectedDate);
+      }
+
+      await loadTasks(selectedDate);
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      setErrorMessage(parsedError.message);
+    } finally {
+      setProcessingTaskId(null);
+    }
+  }
 
   const completedCount = tasks.filter((task) => task.completed).length;
   const pendingCount = tasks.length - completedCount;
@@ -62,7 +104,7 @@ export function TasksPage() {
     >
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex flex-col gap-2 px-4 sm:flex-row sm:items-center sm:gap-4">
             <label
               htmlFor="tasks-date"
               className="text-sm font-medium text-slate-700"
@@ -92,35 +134,46 @@ export function TasksPage() {
             .
           </div>
 
-          {isLoading && (
+          {!selectedDate ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+              Выберите дату, чтобы посмотреть задачи.
+            </div>
+          ) : isInitialLoading ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
               Загрузка задач...
             </div>
-          )}
-
-          {!isLoading && errorMessage && (
+          ) : errorMessage && tasks.length === 0 ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">
               {errorMessage}
             </div>
-          )}
-
-          {!isLoading && !errorMessage && tasks.length === 0 && (
+          ) : tasks.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-              На выбранную дату задач нет.
+              <p>На выбранную дату задач пока нет 🙂</p>
+              <p className="mt-2">
+                Когда в одном из списков для вас появится задача с назначением
+                на этот день, она отобразится здесь.
+              </p>
             </div>
-          )}
+          ) : (
+            <div className="flex flex-col gap-4">
+              {errorMessage && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+                  {errorMessage}
+                </div>
+              )}
 
-          {!isLoading && !errorMessage && tasks.length > 0 && (
-            <div className="grid gap-4">
-              {tasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  title={task.title}
-                  listTitle={task.listTitle}
-                  completed={task.completed}
-                  onToggleCompleted={() => {}}
-                />
-              ))}
+              <div className="grid gap-4">
+                {tasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    title={task.title}
+                    listTitle={task.listTitle}
+                    completed={task.completed}
+                    isToggleLoading={processingTaskId === task.id}
+                    onToggleCompleted={() => void handleToggleCompleted(task)}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>

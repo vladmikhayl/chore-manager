@@ -8,3 +8,17 @@ export async function getTasksForDay(date: string): Promise<TaskResponse[]> {
 
   return response.data;
 }
+
+export async function completeTask(
+  taskId: string,
+  date: string,
+): Promise<void> {
+  await apiClient.put(`/tasks/${taskId}/completions/${date}`);
+}
+
+export async function deleteTaskCompletion(
+  taskId: string,
+  date: string,
+): Promise<void> {
+  await apiClient.delete(`/tasks/${taskId}/completions/${date}`);
+}

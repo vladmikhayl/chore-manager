@@ -3,7 +3,7 @@ type TaskCardProps = {
   listTitle: string;
   completed: boolean;
   onToggleCompleted: () => void;
-  toggleDisabled?: boolean;
+  isToggleLoading?: boolean;
 };
 
 export function TaskCard({
@@ -11,7 +11,7 @@ export function TaskCard({
   listTitle,
   completed,
   onToggleCompleted,
-  toggleDisabled = false,
+  isToggleLoading = false,
 }: TaskCardProps) {
   return (
     <article
@@ -43,7 +43,7 @@ export function TaskCard({
 
           <h3
             className={[
-              "mt-3 text-lg font-semibold break-words",
+              "mt-3 break-words text-lg font-semibold",
               completed ? "text-slate-700 line-through" : "text-slate-900",
             ].join(" ")}
           >
@@ -62,17 +62,21 @@ export function TaskCard({
           <button
             type="button"
             onClick={onToggleCompleted}
-            disabled={toggleDisabled}
+            disabled={isToggleLoading}
             className={[
               "rounded-xl px-4 py-2 text-sm font-semibold text-white transition",
-              toggleDisabled
+              isToggleLoading
                 ? "cursor-not-allowed bg-slate-400"
                 : completed
                   ? "cursor-pointer bg-slate-600 hover:bg-slate-700"
                   : "cursor-pointer bg-emerald-600 hover:bg-emerald-700",
             ].join(" ")}
           >
-            {completed ? "Снять выполнение" : "Отметить выполненной"}
+            {isToggleLoading
+              ? "Сохранение..."
+              : completed
+                ? "Снять выполнение"
+                : "Отметить выполненной"}
           </button>
         </div>
       </div>
