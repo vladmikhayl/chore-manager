@@ -20,16 +20,16 @@ import java.util.UUID;
 @Builder
 @Schema(description = "Запрос на создание задачи")
 public class CreateTaskRequest {
-    @NotBlank(message = "Название задачи не может быть пустым")
-    @Size(max = 255, message = "Название задачи не может быть длиннее 255 символов")
+    @NotBlank(message = "Название задачи не может быть пустым.")
+    @Size(max = 255, message = "Название задачи не может быть длиннее 255 символов.")
     @Schema(description = "Название задачи", example = "Вынести мусор")
     private String title;
 
-    @NotNull(message = "Не указано правило повторения")
+    @NotNull(message = "Не указано правило повторения.")
     @Schema(description = "Тип повторения задачи", example = "WeeklyByDays")
     private RecurrenceType recurrenceType;
 
-    @Min(value = 1, message = "Интервал в днях должен быть >= 1")
+    @Min(value = 1, message = "Интервал в днях должен быть >= 1.")
     @Schema(description = "Интервал в днях для recurrenceType = EveryNdays", example = "3", nullable = true)
     private Integer intervalDays;
 
@@ -39,7 +39,7 @@ public class CreateTaskRequest {
             @Max(value = 6, message = "День недели должен быть в диапазоне 0..6")
                     Integer> weekdays;
 
-    @NotNull(message = "Не указано правило назначения исполнителя")
+    @NotNull(message = "Не указано правило назначения исполнителя.")
     @Schema(description = "Тип назначения исполнителя", example = "RoundRobin")
     private AssignmentType assignmentType;
 
