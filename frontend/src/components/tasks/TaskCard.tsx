@@ -1,57 +1,57 @@
 type TaskCardProps = {
   title: string;
-  listName: string;
-  isCompleted: boolean;
+  listTitle: string;
+  completed: boolean;
   onToggleCompleted: () => void;
+  toggleDisabled?: boolean;
 };
 
 export function TaskCard({
   title,
-  listName,
-  isCompleted,
+  listTitle,
+  completed,
   onToggleCompleted,
+  toggleDisabled = false,
 }: TaskCardProps) {
   return (
     <article
       className={[
-        "rounded-2xl border p-4 transition",
-        isCompleted
+        "rounded-2xl border p-5 transition",
+        completed
           ? "border-emerald-200 bg-emerald-50"
           : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100",
       ].join(" ")}
     >
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700">
-              {listName}
+            <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
+              {listTitle}
             </span>
 
             <span
               className={[
-                "rounded-full px-2.5 py-1 text-xs font-medium",
-                isCompleted
+                "rounded-full px-3 py-1 text-xs font-medium",
+                completed
                   ? "bg-emerald-100 text-emerald-700"
                   : "bg-slate-200 text-slate-700",
               ].join(" ")}
             >
-              {isCompleted ? "Выполнено" : "Не выполнено"}
+              {completed ? "Выполнено" : "Не выполнено"}
             </span>
           </div>
 
           <h3
             className={[
-              "mt-3 text-lg font-semibold",
-              isCompleted ? "text-slate-700 line-through" : "text-slate-900",
+              "mt-3 text-lg font-semibold break-words",
+              completed ? "text-slate-700 line-through" : "text-slate-900",
             ].join(" ")}
           >
             {title}
           </h3>
-
-          <p className="mt-1 text-sm text-slate-600">Список дел: {listName}</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <button
             type="button"
             className="cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
@@ -62,14 +62,17 @@ export function TaskCard({
           <button
             type="button"
             onClick={onToggleCompleted}
+            disabled={toggleDisabled}
             className={[
-              "cursor-pointer rounded-xl px-4 py-2 text-sm font-semibold text-white transition",
-              isCompleted
-                ? "bg-slate-600 hover:bg-slate-700"
-                : "bg-emerald-600 hover:bg-emerald-700",
+              "rounded-xl px-4 py-2 text-sm font-semibold text-white transition",
+              toggleDisabled
+                ? "cursor-not-allowed bg-slate-400"
+                : completed
+                  ? "cursor-pointer bg-slate-600 hover:bg-slate-700"
+                  : "cursor-pointer bg-emerald-600 hover:bg-emerald-700",
             ].join(" ")}
           >
-            {isCompleted ? "Снять выполнение" : "Отметить выполненной"}
+            {completed ? "Снять выполнение" : "Отметить выполненной"}
           </button>
         </div>
       </div>
