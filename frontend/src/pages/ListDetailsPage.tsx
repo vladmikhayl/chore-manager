@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getListDetails } from "../api/listsApi";
+import { createInvite, getListDetails } from "../api/listsApi";
 import { AppLayout } from "../components/AppLayout";
 import { PageSection } from "../components/shared/PageSection";
 import type { TodoListDetailsResponse } from "../types/lists";
 import { parseApiError } from "../utils/parseApiError";
+import { CreateInviteModal } from "../components/lists/CreateInviteModal";
 
 export function ListDetailsPage() {
   const { listId } = useParams<{ listId: string }>();
@@ -14,6 +15,13 @@ export function ListDetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isMembersExpanded, setIsMembersExpanded] = useState(false);
+
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteErrorMessage, setInviteErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [isCreatingInvite, setIsCreatingInvite] = useState(false);
 
   const loadListDetails = useCallback(async () => {
     if (!listId) {
@@ -84,6 +92,37 @@ export function ListDetailsPage() {
     return null;
   }
 
+  async function handleOpenInviteModal() {
+    if (!listId) {
+      return;
+    }
+
+    setInviteToken(null);
+    setInviteErrorMessage(null);
+    setIsCreatingInvite(true);
+    setIsInviteModalOpen(true);
+
+    try {
+      const response = await createInvite(listId);
+      setInviteToken(response.token);
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      setInviteErrorMessage(parsedError.message);
+    } finally {
+      setIsCreatingInvite(false);
+    }
+  }
+
+  function handleCloseInviteModal() {
+    if (isCreatingInvite) {
+      return;
+    }
+
+    setIsInviteModalOpen(false);
+    setInviteToken(null);
+    setInviteErrorMessage(null);
+  }
+
   const membersCount = listDetails.members.length;
 
   return (
@@ -137,18 +176,29 @@ export function ListDetailsPage() {
                     onClick={() => setIsMembersExpanded((prev) => !prev)}
                     className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
                   >
-                    {isMembersExpanded
-                      ? "Скрыть участников ▲"
-                      : "Показать участников ▼"}
+                    <span className="inline-flex items-center gap-2">
+                      <span>
+                        {isMembersExpanded
+                          ? "Скрыть участников"
+                          : "Показать участников"}
+                      </span>
+
+                      <span className="text-[11px] leading-none text-slate-500">
+                        {isMembersExpanded ? "▲" : "▼"}
+                      </span>
+                    </span>
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                >
-                  Пригласить участника
-                </button>
+                {listDetails.isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => void handleOpenInviteModal()}
+                    className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                  >
+                    Пригласить участника
+                  </button>
+                )}
               </div>
             </div>
 
@@ -198,6 +248,15 @@ export function ListDetailsPage() {
           </div>
         </PageSection>
       </div>
+
+      {isInviteModalOpen && (
+        <CreateInviteModal
+          token={inviteToken}
+          isLoading={isCreatingInvite}
+          errorMessage={inviteErrorMessage}
+          onClose={handleCloseInviteModal}
+        />
+      )}
     </AppLayout>
   );
 }

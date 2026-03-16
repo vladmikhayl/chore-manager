@@ -21,3 +21,12 @@ export type TodoListDetailsResponse = {
   isOwner: boolean;
   members: TodoListMemberResponse[];
 };
+
+export type CreateInviteResponse = {
+  token: string;
+  expiresAt: string;
+};
+
+export type AcceptInviteRequest = {
+  token: string;
+};

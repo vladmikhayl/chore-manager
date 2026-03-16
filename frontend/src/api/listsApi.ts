@@ -1,5 +1,7 @@
 import { apiClient } from "./apiClient";
 import type {
+  AcceptInviteRequest,
+  CreateInviteResponse,
   CreateTodoListRequest,
   TodoListDetailsResponse,
   TodoListShortResponse,
@@ -23,4 +25,20 @@ export async function getListDetails(
     `/lists/${listId}`,
   );
   return response.data;
+}
+
+export async function createInvite(
+  listId: string,
+): Promise<CreateInviteResponse> {
+  const response = await apiClient.post<CreateInviteResponse>(
+    `/lists/${listId}/invites`,
+  );
+
+  return response.data;
+}
+
+export async function acceptInvite(
+  request: AcceptInviteRequest,
+): Promise<void> {
+  await apiClient.post("/invites/accept", request);
 }
