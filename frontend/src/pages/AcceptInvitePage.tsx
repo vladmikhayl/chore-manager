@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { acceptInvite } from "../api/listsApi";
 import { AppLayout } from "../components/AppLayout";
@@ -13,19 +13,22 @@ export function AcceptInvitePage() {
   const [status, setStatus] = useState<AcceptInviteStatus>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function runAcceptInvite() {
-      if (!token) {
-        setStatus("error");
-        setErrorMessage("Ссылка приглашения некорректна.");
-        return;
-      }
+  const hasRequestedRef = useRef(false);
 
+  useEffect(() => {
+    if (!token || hasRequestedRef.current) {
+      return;
+    }
+
+    hasRequestedRef.current = true;
+    const inviteToken = token;
+
+    async function runAcceptInvite() {
       try {
         setStatus("loading");
         setErrorMessage(null);
 
-        await acceptInvite({ token });
+        await acceptInvite({ token: inviteToken });
 
         setStatus("success");
       } catch (error) {
