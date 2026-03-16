@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { createInvite, getListDetails, leaveList } from "../api/listsApi";
+import {
+  createInvite,
+  deleteList,
+  getListDetails,
+  leaveList,
+} from "../api/listsApi";
 import { AppLayout } from "../components/AppLayout";
 import { PageSection } from "../components/shared/PageSection";
 import type { TodoListDetailsResponse } from "../types/lists";
@@ -27,6 +32,7 @@ export function ListDetailsPage() {
   const [isCreatingInvite, setIsCreatingInvite] = useState(false);
 
   const [isLeavingList, setIsLeavingList] = useState(false);
+  const [isDeletingList, setIsDeletingList] = useState(false);
 
   const loadListDetails = useCallback(async () => {
     if (!listId) {
@@ -145,6 +151,34 @@ export function ListDetailsPage() {
       toast.error(parsedError.message);
     } finally {
       setIsLeavingList(false);
+    }
+  }
+
+  async function handleDeleteList() {
+    if (!listId || isDeletingList) {
+      return;
+    }
+
+    const isConfirmed = window.confirm(
+      "Вы действительно хотите удалить этот список дел? Это действие нельзя отменить.",
+    );
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    try {
+      setIsDeletingList(true);
+
+      await deleteList(listId);
+
+      toast.success("Список дел успешно удалён");
+      navigate("/lists", { replace: true });
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      toast.error(parsedError.message);
+    } finally {
+      setIsDeletingList(false);
     }
   }
 
@@ -273,7 +307,7 @@ export function ListDetailsPage() {
           </div>
         </PageSection>
 
-        {!listDetails.isOwner && (
+        {!listDetails.isOwner ? (
           <button
             type="button"
             onClick={() => void handleLeaveList()}
@@ -281,6 +315,15 @@ export function ListDetailsPage() {
             className="cursor-pointer rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isLeavingList ? "Выходим из списка..." : "Покинуть список"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void handleDeleteList()}
+            disabled={isDeletingList}
+            className="cursor-pointer rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isDeletingList ? "Удаляем список..." : "Удалить список"}
           </button>
         )}
       </div>

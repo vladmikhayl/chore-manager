@@ -46,3 +46,7 @@ export async function acceptInvite(
 export async function leaveList(listId: string): Promise<void> {
   await apiClient.delete(`/lists/${listId}/members/me`);
 }
+
+export async function deleteList(listId: string): Promise<void> {
+  await apiClient.delete(`/lists/${listId}`);
+}
