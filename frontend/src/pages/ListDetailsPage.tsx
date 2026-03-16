@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { createInvite, getListDetails } from "../api/listsApi";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { createInvite, getListDetails, leaveList } from "../api/listsApi";
 import { AppLayout } from "../components/AppLayout";
 import { PageSection } from "../components/shared/PageSection";
 import type { TodoListDetailsResponse } from "../types/lists";
 import { parseApiError } from "../utils/parseApiError";
 import { CreateInviteModal } from "../components/lists/CreateInviteModal";
+import toast from "react-hot-toast";
 
 export function ListDetailsPage() {
+  const navigate = useNavigate();
+
   const { listId } = useParams<{ listId: string }>();
 
   const [listDetails, setListDetails] =
@@ -22,6 +25,8 @@ export function ListDetailsPage() {
     null,
   );
   const [isCreatingInvite, setIsCreatingInvite] = useState(false);
+
+  const [isLeavingList, setIsLeavingList] = useState(false);
 
   const loadListDetails = useCallback(async () => {
     if (!listId) {
@@ -121,6 +126,26 @@ export function ListDetailsPage() {
     setIsInviteModalOpen(false);
     setInviteToken(null);
     setInviteErrorMessage(null);
+  }
+
+  async function handleLeaveList() {
+    if (!listId || isLeavingList) {
+      return;
+    }
+
+    try {
+      setIsLeavingList(true);
+
+      await leaveList(listId);
+
+      toast.success("Вы успешно вышли из списка");
+      navigate("/lists", { replace: true });
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      toast.error(parsedError.message);
+    } finally {
+      setIsLeavingList(false);
+    }
   }
 
   const membersCount = listDetails.members.length;
@@ -247,6 +272,17 @@ export function ListDetailsPage() {
             Скоро здесь появится список задач 🙂
           </div>
         </PageSection>
+
+        {!listDetails.isOwner && (
+          <button
+            type="button"
+            onClick={() => void handleLeaveList()}
+            disabled={isLeavingList}
+            className="cursor-pointer rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isLeavingList ? "Выходим из списка..." : "Покинуть список"}
+          </button>
+        )}
       </div>
 
       {isInviteModalOpen && (
