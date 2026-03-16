@@ -5,6 +5,7 @@ import { PublicRoute } from "./components/routing/PublicRoute";
 import { PrivateRoute } from "./components/routing/PrivateRoute";
 import { TasksPage } from "./pages/TasksPage";
 import { ListsPage } from "./pages/ListsPage";
+import { ListDetailsPage } from "./pages/ListDetailsPage";
 
 export default function App() {
   return (
@@ -44,6 +45,15 @@ export default function App() {
           element={
             <PrivateRoute>
               <ListsPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/lists/:listId"
+          element={
+            <PrivateRoute>
+              <ListDetailsPage />
             </PrivateRoute>
           }
         />

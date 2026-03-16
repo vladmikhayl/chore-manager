@@ -1,0 +1,203 @@
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { getListDetails } from "../api/listsApi";
+import { AppLayout } from "../components/AppLayout";
+import { PageSection } from "../components/shared/PageSection";
+import type { TodoListDetailsResponse } from "../types/lists";
+import { parseApiError } from "../utils/parseApiError";
+
+export function ListDetailsPage() {
+  const { listId } = useParams<{ listId: string }>();
+
+  const [listDetails, setListDetails] =
+    useState<TodoListDetailsResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isMembersExpanded, setIsMembersExpanded] = useState(false);
+
+  const loadListDetails = useCallback(async () => {
+    if (!listId) {
+      setErrorMessage("Не удалось определить список дел.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setErrorMessage(null);
+      const response = await getListDetails(listId);
+      setListDetails(response);
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      setErrorMessage(parsedError.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [listId]);
+
+  useEffect(() => {
+    void loadListDetails();
+  }, [loadListDetails]);
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex flex-col gap-6">
+          <Link
+            to="/lists"
+            className="inline-flex w-fit items-center text-base font-semibold text-slate-700 transition hover:text-indigo-700"
+          >
+            ← К спискам дел
+          </Link>
+
+          <PageSection title="Список дел">
+            <div className="rounded-2xl bg-slate-50 px-4 py-5 text-sm text-slate-600">
+              Загружаем информацию о списке...
+            </div>
+          </PageSection>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (errorMessage && !listDetails) {
+    return (
+      <AppLayout>
+        <div className="flex flex-col gap-6">
+          <Link
+            to="/lists"
+            className="inline-flex w-fit items-center text-base font-semibold text-slate-700 transition hover:text-indigo-700"
+          >
+            ← К спискам дел
+          </Link>
+
+          <PageSection title="Список дел">
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-5 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          </PageSection>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!listDetails) {
+    return null;
+  }
+
+  const membersCount = listDetails.members.length;
+
+  return (
+    <AppLayout>
+      <div className="flex flex-col gap-6">
+        <Link
+          to="/lists"
+          className="inline-flex w-fit items-center text-base font-semibold text-slate-700 transition hover:text-indigo-700"
+        >
+          ← К спискам дел
+        </Link>
+
+        <PageSection>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-2xl font-bold leading-none text-slate-900">
+                {listDetails.title}
+              </h2>
+
+              {listDetails.isOwner ? (
+                <span className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
+                  Вы создатель
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                  Вы приглашённый участник
+                </span>
+              )}
+            </div>
+
+            <p className="text-sm leading-6 text-slate-600">
+              Здесь собрана основная информация об этом списке дел.
+            </p>
+          </div>
+        </PageSection>
+
+        <PageSection title="Участники списка">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-600">
+                Всего участников:{" "}
+                <span className="font-semibold text-slate-900">
+                  {membersCount}
+                </span>
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {membersCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsMembersExpanded((prev) => !prev)}
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                  >
+                    {isMembersExpanded
+                      ? "Скрыть участников ▲"
+                      : "Показать участников ▼"}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                >
+                  Пригласить участника
+                </button>
+              </div>
+            </div>
+
+            {membersCount === 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                Пока в этом списке нет участников.
+              </div>
+            ) : (
+              isMembersExpanded && (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                  {listDetails.members.map((member, index) => {
+                    const isOwner = member.userId === listDetails.ownerUserId;
+
+                    return (
+                      <div
+                        key={member.userId}
+                        className={`flex items-center justify-between gap-3 px-4 py-3 ${
+                          index !== listDetails.members.length - 1
+                            ? "border-b border-slate-200"
+                            : ""
+                        }`}
+                      >
+                        <span className="text-sm font-medium text-slate-900">
+                          {member.login}
+                        </span>
+
+                        {isOwner && (
+                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+                            Создатель
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+          </div>
+        </PageSection>
+
+        <PageSection
+          title="Задачи списка"
+          description="Здесь будут отображаться задачи этого списка, их правила назначения и статус выполнения."
+        >
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+            Скоро здесь появится список задач 🙂
+          </div>
+        </PageSection>
+      </div>
+    </AppLayout>
+  );
+}
