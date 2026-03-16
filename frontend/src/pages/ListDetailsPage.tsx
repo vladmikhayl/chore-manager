@@ -12,6 +12,9 @@ import type { TodoListDetailsResponse } from "../types/lists";
 import { parseApiError } from "../utils/parseApiError";
 import { CreateInviteModal } from "../components/lists/CreateInviteModal";
 import toast from "react-hot-toast";
+import type { CreateTaskRequest } from "../types/tasks";
+import { createTask } from "../api/tasksApi";
+import { CreateTaskModal } from "../components/tasks/CreateTaskModal";
 
 export function ListDetailsPage() {
   const navigate = useNavigate();
@@ -33,6 +36,12 @@ export function ListDetailsPage() {
 
   const [isLeavingList, setIsLeavingList] = useState(false);
   const [isDeletingList, setIsDeletingList] = useState(false);
+
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [createTaskErrorMessage, setCreateTaskErrorMessage] = useState<
+    string | null
+  >(null);
 
   const loadListDetails = useCallback(async () => {
     if (!listId) {
@@ -182,6 +191,41 @@ export function ListDetailsPage() {
     }
   }
 
+  function handleOpenTaskModal() {
+    setCreateTaskErrorMessage(null);
+    setIsTaskModalOpen(true);
+  }
+
+  function handleCloseTaskModal() {
+    if (isCreatingTask) {
+      return;
+    }
+
+    setIsTaskModalOpen(false);
+    setCreateTaskErrorMessage(null);
+  }
+
+  async function handleCreateTask(request: CreateTaskRequest) {
+    if (!listId) {
+      return;
+    }
+
+    try {
+      setIsCreatingTask(true);
+      setCreateTaskErrorMessage(null);
+
+      await createTask(listId, request);
+
+      toast.success("Задача успешно создана");
+      setIsTaskModalOpen(false);
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      setCreateTaskErrorMessage(parsedError.message);
+    } finally {
+      setIsCreatingTask(false);
+    }
+  }
+
   const membersCount = listDetails.members.length;
 
   return (
@@ -300,10 +344,27 @@ export function ListDetailsPage() {
 
         <PageSection
           title="Задачи списка"
-          description="Здесь будут отображаться задачи этого списка, их правила назначения и статус выполнения."
+          description="Здесь отображаются задачи этого списка, правила их повторения и назначения ответственных."
         >
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-            Скоро здесь появится список задач 🙂
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-slate-600">
+                Пока список задач ещё не загружен на эту страницу.
+              </div>
+
+              <button
+                type="button"
+                onClick={handleOpenTaskModal}
+                className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+              >
+                Создать задачу
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+              Скоро здесь появится список задач 🙂 После создания можно будет
+              показывать карточки задач с правилами повторения и назначения.
+            </div>
           </div>
         </PageSection>
 
@@ -334,6 +395,16 @@ export function ListDetailsPage() {
           isLoading={isCreatingInvite}
           errorMessage={inviteErrorMessage}
           onClose={handleCloseInviteModal}
+        />
+      )}
+
+      {isTaskModalOpen && (
+        <CreateTaskModal
+          members={listDetails.members}
+          isLoading={isCreatingTask}
+          errorMessage={createTaskErrorMessage}
+          onClose={handleCloseTaskModal}
+          onSubmit={handleCreateTask}
         />
       )}
     </AppLayout>

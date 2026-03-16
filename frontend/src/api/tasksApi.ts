@@ -1,5 +1,5 @@
 import { apiClient } from "./apiClient";
-import type { TaskResponse } from "../types/tasks";
+import type { CreateTaskRequest, TaskResponse } from "../types/tasks";
 
 export async function getTasksForDay(date: string): Promise<TaskResponse[]> {
   const response = await apiClient.get<TaskResponse[]>("/tasks", {
@@ -21,4 +21,15 @@ export async function deleteTaskCompletion(
   date: string,
 ): Promise<void> {
   await apiClient.delete(`/tasks/${taskId}/completions/${date}`);
+}
+
+export async function createTask(
+  listId: string,
+  request: CreateTaskRequest,
+): Promise<string> {
+  const response = await apiClient.post<string>(
+    `/lists/${listId}/tasks`,
+    request,
+  );
+  return response.data;
 }

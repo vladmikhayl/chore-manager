@@ -1,7 +1,7 @@
 import type { InputHTMLAttributes } from "react";
 
 type TextInputProps = InputHTMLAttributes<HTMLInputElement> & {
-  label: string;
+  label?: string;
   error?: string;
 };
 
@@ -13,9 +13,11 @@ export function TextInput({
 }: TextInputProps) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-700">
-        {label}
-      </span>
+      {label ? (
+        <span className="mb-2 block text-sm font-medium text-slate-700">
+          {label}
+        </span>
+      ) : null}
 
       <input
         {...props}
