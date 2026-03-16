@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppLayout } from "../components/AppLayout";
-import { TodoListCard } from "../components/lists/TodoListCard";
 import { createList, getLists } from "../api/listsApi";
+import { AppLayout } from "../components/AppLayout";
+import { CreateListModal } from "../components/lists/CreateListModal";
+import { TodoListCard } from "../components/lists/TodoListCard";
 import type { TodoListShortResponse } from "../types/lists";
 import { parseApiError } from "../utils/parseApiError";
-import { CreateListModal } from "../components/lists/CreateListModal";
+import toast from "react-hot-toast";
 
 export function ListsPage() {
   const navigate = useNavigate();
@@ -83,6 +84,8 @@ export function ListsPage() {
       setIsCreateModalOpen(false);
       setNewListTitle("");
       await loadLists();
+
+      toast.success("Список дел успешно создан");
     } catch (error) {
       const parsedError = parseApiError(error);
       setCreateErrorMessage(parsedError.message);

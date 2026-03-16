@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { removeAccessToken } from "../utils/authStorage";
 import { AppNavLink } from "./AppNavLink";
+import toast from "react-hot-toast";
 
 export function AppHeader() {
   const navigate = useNavigate();
@@ -8,6 +9,7 @@ export function AppHeader() {
   function handleLogout() {
     removeAccessToken();
     navigate("/login", { replace: true });
+    toast.success("Вы успешно вышли из аккаунта");
   }
 
   return (
