@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { TodoListMemberResponse } from "../../types/lists";
 import type {
   AssignmentType,
@@ -33,6 +33,15 @@ export function CreateTaskModal({
   onClose,
   onSubmit,
 }: CreateTaskModalProps) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
   const [title, setTitle] = useState("");
   const [recurrenceType, setRecurrenceType] =
     useState<RecurrenceType>("WeeklyByDays");

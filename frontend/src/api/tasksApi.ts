@@ -9,6 +9,13 @@ export async function getTasksForDay(date: string): Promise<TaskResponse[]> {
   return response.data;
 }
 
+export async function getListTasks(listId: string): Promise<TaskResponse[]> {
+  const response = await apiClient.get<TaskResponse[]>(
+    `/lists/${listId}/tasks`,
+  );
+  return response.data;
+}
+
 export async function completeTask(
   taskId: string,
   date: string,

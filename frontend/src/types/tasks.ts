@@ -1,3 +1,5 @@
+import type { TodoListMemberResponse } from "./lists";
+
 export type RecurrenceType = "WeeklyByDays" | "EveryNdays";
 
 export type AssignmentType = "FixedUser" | "RoundRobin" | "ByWeekday";
@@ -25,7 +27,7 @@ export type TaskResponse = {
   weekdays: number[] | null;
   assignmentType: string;
   fixedUserId: string | null;
-  roundRobinUsers: unknown[] | null;
+  roundRobinUsers: TodoListMemberResponse[] | null;
   weekdayAssignees: Record<string, string> | null;
   completed: boolean;
 };

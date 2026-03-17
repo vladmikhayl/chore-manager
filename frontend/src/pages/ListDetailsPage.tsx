@@ -12,9 +12,10 @@ import type { TodoListDetailsResponse } from "../types/lists";
 import { parseApiError } from "../utils/parseApiError";
 import { CreateInviteModal } from "../components/lists/CreateInviteModal";
 import toast from "react-hot-toast";
-import type { CreateTaskRequest } from "../types/tasks";
-import { createTask } from "../api/tasksApi";
+import type { CreateTaskRequest, TaskResponse } from "../types/tasks";
+import { createTask, getListTasks } from "../api/tasksApi";
 import { CreateTaskModal } from "../components/tasks/CreateTaskModal";
+import { ListTaskCard } from "../components/tasks/ListTaskCard";
 
 export function ListDetailsPage() {
   const navigate = useNavigate();
@@ -42,6 +43,38 @@ export function ListDetailsPage() {
   const [createTaskErrorMessage, setCreateTaskErrorMessage] = useState<
     string | null
   >(null);
+
+  const [tasks, setTasks] = useState<TaskResponse[]>([]);
+  const [isTasksLoading, setIsTasksLoading] = useState(true);
+  const [tasksErrorMessage, setTasksErrorMessage] = useState<string | null>(
+    null,
+  );
+
+  const loadTasks = useCallback(async () => {
+    if (!listId) {
+      setTasks([]);
+      setIsTasksLoading(false);
+      return;
+    }
+
+    try {
+      setTasksErrorMessage(null);
+      setIsTasksLoading(true);
+
+      const response = await getListTasks(listId);
+      setTasks(response);
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      setTasksErrorMessage(parsedError.message);
+      setTasks([]);
+    } finally {
+      setIsTasksLoading(false);
+    }
+  }, [listId]);
+
+  useEffect(() => {
+    void loadTasks();
+  }, [loadTasks]);
 
   const loadListDetails = useCallback(async () => {
     if (!listId) {
@@ -215,6 +248,7 @@ export function ListDetailsPage() {
       setCreateTaskErrorMessage(null);
 
       await createTask(listId, request);
+      await loadTasks();
 
       toast.success("Задача успешно создана");
       setIsTaskModalOpen(false);
@@ -297,7 +331,7 @@ export function ListDetailsPage() {
                   <button
                     type="button"
                     onClick={() => void handleOpenInviteModal()}
-                    className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                    className="w-full sm:w-56 rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
                   >
                     Пригласить участника
                   </button>
@@ -342,29 +376,51 @@ export function ListDetailsPage() {
           </div>
         </PageSection>
 
-        <PageSection
-          title="Задачи списка"
-          description="Здесь отображаются задачи этого списка, правила их повторения и назначения ответственных."
-        >
+        <PageSection title="Задачи списка">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm text-slate-600">
-                Пока список задач ещё не загружен на эту страницу.
-              </div>
+              <p className="text-sm text-slate-600">
+                Всего задач:{" "}
+                <span className="font-semibold text-slate-900">
+                  {tasks.length}
+                </span>
+              </p>
 
               <button
                 type="button"
                 onClick={handleOpenTaskModal}
-                className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                className="w-full sm:w-56 rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
               >
                 Создать задачу
               </button>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-              Скоро здесь появится список задач 🙂 После создания можно будет
-              показывать карточки задач с правилами повторения и назначения.
-            </div>
+            {isTasksLoading ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+                Загрузка задач...
+              </div>
+            ) : tasksErrorMessage ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">
+                {tasksErrorMessage}
+              </div>
+            ) : tasks.length === 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+                <p>В этом списке пока нет задач 🙂</p>
+                <p className="mt-2">
+                  Создайте первую задачу, и она появится здесь.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {tasks.map((task) => (
+                  <ListTaskCard
+                    key={task.id}
+                    task={task}
+                    members={listDetails.members}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </PageSection>
 
