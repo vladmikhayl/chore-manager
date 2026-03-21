@@ -786,7 +786,7 @@ public class TaskManagementServiceTest {
 
         Instant now = Instant.parse("2026-03-05T10:15:30Z");
         when(clock.instant()).thenReturn(now);
-        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
 
         UUID fixed = UUID.randomUUID();
         stubUserIsMember(LIST_ID, fixed);
@@ -831,7 +831,7 @@ public class TaskManagementServiceTest {
 
         Instant now = Instant.parse("2026-03-05T10:15:30Z");
         when(clock.instant()).thenReturn(now);
-        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
 
         UUID c1 = UUID.randomUUID();
         UUID c2 = UUID.randomUUID();
@@ -891,7 +891,7 @@ public class TaskManagementServiceTest {
 
         Instant now = Instant.parse("2026-03-05T10:15:30Z");
         when(clock.instant()).thenReturn(now);
-        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
 
         UUID u0 = UUID.randomUUID();
         UUID u1 = UUID.randomUUID();
@@ -1618,7 +1618,7 @@ public class TaskManagementServiceTest {
 
         Instant now = Instant.parse("2026-03-05T10:15:30Z");
         when(clock.instant()).thenReturn(now);
-        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
 
         taskManagementService.completeTask(USER_ID, taskId, date);
 
@@ -1632,7 +1632,7 @@ public class TaskManagementServiceTest {
         assertThat(saved.getId()).isEqualTo(id);
         assertThat(saved.getCompletedByUserId()).isEqualTo(USER_ID);
         assertThat(saved.getCompletedAt())
-                .isEqualTo(LocalDateTime.ofInstant(now, ZoneOffset.UTC));
+                .isEqualTo(LocalDateTime.ofInstant(now, ZoneId.of("Europe/Moscow")));
     }
 
     @Test
@@ -1655,7 +1655,7 @@ public class TaskManagementServiceTest {
 
         Instant now = Instant.parse("2026-03-05T12:00:00Z");
         when(clock.instant()).thenReturn(now);
-        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
 
         taskManagementService.completeTask(USER_ID, taskId, date);
 
@@ -1669,7 +1669,7 @@ public class TaskManagementServiceTest {
         assertThat(saved).isSameAs(existing);
         assertThat(saved.getCompletedByUserId()).isEqualTo(USER_ID);
         assertThat(saved.getCompletedAt())
-                .isEqualTo(LocalDateTime.ofInstant(now, ZoneOffset.UTC));
+                .isEqualTo(LocalDateTime.ofInstant(now, ZoneId.of("Europe/Moscow")));
     }
 
     @Test
@@ -1803,8 +1803,8 @@ public class TaskManagementServiceTest {
         UUID userId = UUID.randomUUID();
         LocalDate today = LocalDate.of(2026, 3, 8);
 
-        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneOffset.UTC).toInstant());
-        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneId.of("Europe/Moscow")).toInstant());
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
 
         assertThatThrownBy(() -> taskManagementService.getTasksForDay(userId, today.minusDays(1)))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -1816,8 +1816,8 @@ public class TaskManagementServiceTest {
         UUID userId = UUID.randomUUID();
         LocalDate today = LocalDate.of(2026, 3, 8);
 
-        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneOffset.UTC).toInstant());
-        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneId.of("Europe/Moscow")).toInstant());
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
 
         when(listMemberRepository.findAllById_UserId(userId)).thenReturn(List.of());
 
@@ -1832,8 +1832,8 @@ public class TaskManagementServiceTest {
         UUID listId = UUID.randomUUID();
         LocalDate today = LocalDate.of(2026, 3, 8);
 
-        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneOffset.UTC).toInstant());
-        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneId.of("Europe/Moscow")).toInstant());
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
 
         when(listMemberRepository.findAllById_UserId(userId)).thenReturn(List.of(
                 ListMember.builder()
@@ -1883,8 +1883,8 @@ public class TaskManagementServiceTest {
         LocalDate today = LocalDate.of(2026, 3, 8); // воскресенье
         LocalDate date = LocalDate.of(2026, 3, 10); // вторник
 
-        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneOffset.UTC).toInstant());
-        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneId.of("Europe/Moscow")).toInstant());
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
 
         when(listMemberRepository.findAllById_UserId(userId)).thenReturn(List.of(
                 ListMember.builder().id(new ListMemberId(listId1, userId)).login("me").build(),
@@ -2055,8 +2055,8 @@ public class TaskManagementServiceTest {
 
         LocalDate today = LocalDate.of(2026, 3, 8);
 
-        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneOffset.UTC).toInstant());
-        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+        when(clock.instant()).thenReturn(today.atStartOfDay(ZoneId.of("Europe/Moscow")).toInstant());
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
 
         when(listMemberRepository.findAllById_UserId(userId)).thenReturn(List.of(
                 ListMember.builder().id(new ListMemberId(listId, userId)).login("me").build()
