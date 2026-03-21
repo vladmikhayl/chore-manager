@@ -5,7 +5,9 @@ type ListTaskCardProps = {
   task: TaskResponse;
   members: TodoListMemberResponse[];
   onDelete: (taskId: string) => void;
+  onEditAssignmentRule: (task: TaskResponse) => void;
   isDeleting: boolean;
+  isEditingRule: boolean;
 };
 
 const weekdayLabels: Record<number, string> = {
@@ -99,7 +101,9 @@ export function ListTaskCard({
   task,
   members,
   onDelete,
+  onEditAssignmentRule,
   isDeleting,
+  isEditingRule,
 }: ListTaskCardProps) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300">
@@ -123,14 +127,25 @@ export function ListTaskCard({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onDelete(task.id)}
-            disabled={isDeleting}
-            className="cursor-pointer self-start rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto sm:w-48"
-          >
-            {isDeleting ? "Удаляем..." : "Удалить задачу"}
-          </button>
+          <div className="flex flex-col gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => onEditAssignmentRule(task)}
+              disabled={isDeleting || isEditingRule}
+              className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-52"
+            >
+              {isEditingRule ? "Сохраняем..." : "Редактировать правило"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onDelete(task.id)}
+              disabled={isDeleting || isEditingRule}
+              className="cursor-pointer rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-52"
+            >
+              {isDeleting ? "Удаляем..." : "Удалить задачу"}
+            </button>
+          </div>
         </div>
       </div>
     </article>

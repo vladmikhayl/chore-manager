@@ -1,5 +1,9 @@
 import { apiClient } from "./apiClient";
-import type { CreateTaskRequest, TaskResponse } from "../types/tasks";
+import type {
+  CreateTaskRequest,
+  TaskResponse,
+  UpdateAssignmentRuleRequest,
+} from "../types/tasks";
 
 export async function getTasksForDay(date: string): Promise<TaskResponse[]> {
   const response = await apiClient.get<TaskResponse[]>("/tasks", {
@@ -43,4 +47,11 @@ export async function createTask(
 
 export async function deleteTask(taskId: string): Promise<void> {
   await apiClient.delete(`/tasks/${taskId}`);
+}
+
+export async function updateAssignmentRule(
+  taskId: string,
+  request: UpdateAssignmentRuleRequest,
+): Promise<void> {
+  await apiClient.put(`/tasks/${taskId}/assignment-rule`, request);
 }

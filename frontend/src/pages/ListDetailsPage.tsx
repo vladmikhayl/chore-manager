@@ -6,20 +6,29 @@ import {
   getListDetails,
   leaveList,
 } from "../api/listsApi";
+import {
+  createTask,
+  deleteTask,
+  getListTasks,
+  updateAssignmentRule,
+} from "../api/tasksApi";
 import { AppLayout } from "../components/AppLayout";
-import { PageSection } from "../components/shared/PageSection";
-import type { TodoListDetailsResponse } from "../types/lists";
-import { parseApiError } from "../utils/parseApiError";
 import { CreateInviteModal } from "../components/lists/CreateInviteModal";
-import toast from "react-hot-toast";
-import type { CreateTaskRequest, TaskResponse } from "../types/tasks";
-import { createTask, deleteTask, getListTasks } from "../api/tasksApi";
+import { PageSection } from "../components/shared/PageSection";
 import { CreateTaskModal } from "../components/tasks/CreateTaskModal";
+import { EditAssignmentRuleModal } from "../components/tasks/EditAssignmentRuleModal";
 import { ListTaskCard } from "../components/tasks/ListTaskCard";
+import type { TodoListDetailsResponse } from "../types/lists";
+import type {
+  CreateTaskRequest,
+  TaskResponse,
+  UpdateAssignmentRuleRequest,
+} from "../types/tasks";
+import { parseApiError } from "../utils/parseApiError";
+import toast from "react-hot-toast";
 
 export function ListDetailsPage() {
   const navigate = useNavigate();
-
   const { listId } = useParams<{ listId: string }>();
 
   const [listDetails, setListDetails] =
@@ -51,6 +60,14 @@ export function ListDetailsPage() {
   );
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
+  const [editingTask, setEditingTask] = useState<TaskResponse | null>(null);
+  const [isUpdatingAssignmentRule, setIsUpdatingAssignmentRule] =
+    useState(false);
+  const [
+    updateAssignmentRuleErrorMessage,
+    setUpdateAssignmentRuleErrorMessage,
+  ] = useState<string | null>(null);
+
   const loadTasks = useCallback(async () => {
     if (!listId) {
       setTasks([]);
@@ -73,10 +90,6 @@ export function ListDetailsPage() {
     }
   }, [listId]);
 
-  useEffect(() => {
-    void loadTasks();
-  }, [loadTasks]);
-
   const loadListDetails = useCallback(async () => {
     if (!listId) {
       setErrorMessage("Не удалось определить список дел.");
@@ -97,54 +110,12 @@ export function ListDetailsPage() {
   }, [listId]);
 
   useEffect(() => {
+    void loadTasks();
+  }, [loadTasks]);
+
+  useEffect(() => {
     void loadListDetails();
   }, [loadListDetails]);
-
-  if (isLoading) {
-    return (
-      <AppLayout>
-        <div className="flex flex-col gap-6">
-          <Link
-            to="/lists"
-            className="inline-flex w-fit items-center text-base font-semibold text-slate-700 transition hover:text-indigo-700"
-          >
-            ← К спискам дел
-          </Link>
-
-          <PageSection title="Список дел">
-            <div className="rounded-2xl bg-slate-50 px-4 py-5 text-sm text-slate-600">
-              Загружаем информацию о списке...
-            </div>
-          </PageSection>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (errorMessage && !listDetails) {
-    return (
-      <AppLayout>
-        <div className="flex flex-col gap-6">
-          <Link
-            to="/lists"
-            className="inline-flex w-fit items-center text-base font-semibold text-slate-700 transition hover:text-indigo-700"
-          >
-            ← К спискам дел
-          </Link>
-
-          <PageSection title="Список дел">
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-5 text-sm text-red-700">
-              {errorMessage}
-            </div>
-          </PageSection>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (!listDetails) {
-    return null;
-  }
 
   async function handleOpenInviteModal() {
     if (!listId) {
@@ -226,7 +197,7 @@ export function ListDetailsPage() {
   }
 
   async function handleDeleteTask(taskId: string) {
-    if (deletingTaskId) {
+    if (deletingTaskId || isUpdatingAssignmentRule) {
       return;
     }
 
@@ -287,6 +258,95 @@ export function ListDetailsPage() {
     } finally {
       setIsCreatingTask(false);
     }
+  }
+
+  function handleOpenEditAssignmentRuleModal(task: TaskResponse) {
+    if (deletingTaskId) {
+      return;
+    }
+
+    setEditingTask(task);
+    setUpdateAssignmentRuleErrorMessage(null);
+  }
+
+  function handleCloseEditAssignmentRuleModal() {
+    if (isUpdatingAssignmentRule) {
+      return;
+    }
+
+    setEditingTask(null);
+    setUpdateAssignmentRuleErrorMessage(null);
+  }
+
+  async function handleUpdateAssignmentRule(
+    request: UpdateAssignmentRuleRequest,
+  ) {
+    if (!editingTask) {
+      return;
+    }
+
+    try {
+      setIsUpdatingAssignmentRule(true);
+      setUpdateAssignmentRuleErrorMessage(null);
+
+      await updateAssignmentRule(editingTask.id, request);
+      await loadTasks();
+
+      toast.success("Правило назначения успешно обновлено");
+      setEditingTask(null);
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      setUpdateAssignmentRuleErrorMessage(parsedError.message);
+      toast.error(parsedError.message);
+    } finally {
+      setIsUpdatingAssignmentRule(false);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex flex-col gap-6">
+          <Link
+            to="/lists"
+            className="inline-flex w-fit items-center text-base font-semibold text-slate-700 transition hover:text-indigo-700"
+          >
+            ← К спискам дел
+          </Link>
+
+          <PageSection title="Список дел">
+            <div className="rounded-2xl bg-slate-50 px-4 py-5 text-sm text-slate-600">
+              Загружаем информацию о списке...
+            </div>
+          </PageSection>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (errorMessage && !listDetails) {
+    return (
+      <AppLayout>
+        <div className="flex flex-col gap-6">
+          <Link
+            to="/lists"
+            className="inline-flex w-fit items-center text-base font-semibold text-slate-700 transition hover:text-indigo-700"
+          >
+            ← К спискам дел
+          </Link>
+
+          <PageSection title="Список дел">
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-5 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          </PageSection>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!listDetails) {
+    return null;
   }
 
   const membersCount = listDetails.members.length;
@@ -447,7 +507,13 @@ export function ListDetailsPage() {
                     task={task}
                     members={listDetails.members}
                     onDelete={(taskId) => void handleDeleteTask(taskId)}
+                    onEditAssignmentRule={(taskToEdit) =>
+                      handleOpenEditAssignmentRuleModal(taskToEdit)
+                    }
                     isDeleting={deletingTaskId === task.id}
+                    isEditingRule={
+                      isUpdatingAssignmentRule && editingTask?.id === task.id
+                    }
                   />
                 ))}
               </div>
@@ -492,6 +558,17 @@ export function ListDetailsPage() {
           errorMessage={createTaskErrorMessage}
           onClose={handleCloseTaskModal}
           onSubmit={handleCreateTask}
+        />
+      )}
+
+      {editingTask && (
+        <EditAssignmentRuleModal
+          task={editingTask}
+          members={listDetails.members}
+          isLoading={isUpdatingAssignmentRule}
+          errorMessage={updateAssignmentRuleErrorMessage}
+          onClose={handleCloseEditAssignmentRuleModal}
+          onSubmit={handleUpdateAssignmentRule}
         />
       )}
     </AppLayout>
