@@ -2,6 +2,7 @@ type TaskCardProps = {
   title: string;
   listTitle: string;
   completed: boolean;
+  onOpenDetails: () => void;
   onToggleCompleted: () => void;
   isToggleLoading?: boolean;
 };
@@ -10,6 +11,7 @@ export function TaskCard({
   title,
   listTitle,
   completed,
+  onOpenDetails,
   onToggleCompleted,
   isToggleLoading = false,
 }: TaskCardProps) {
@@ -54,6 +56,7 @@ export function TaskCard({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <button
             type="button"
+            onClick={onOpenDetails}
             className="cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Подробнее

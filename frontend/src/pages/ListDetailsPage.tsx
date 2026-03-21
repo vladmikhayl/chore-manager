@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   createInvite,
   deleteList,
@@ -67,6 +72,44 @@ export function ListDetailsPage() {
     updateAssignmentRuleErrorMessage,
     setUpdateAssignmentRuleErrorMessage,
   ] = useState<string | null>(null);
+
+  const [searchParams] = useSearchParams();
+  const targetTaskId = searchParams.get("taskId");
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!targetTaskId || isTasksLoading || tasks.length === 0) {
+      return;
+    }
+
+    const element = document.getElementById(`task-${targetTaskId}`);
+
+    if (!element) {
+      return;
+    }
+
+    const scrollTimeoutId = window.setTimeout(() => {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+      setHighlightedTaskId(targetTaskId);
+    }, 100);
+
+    const highlightTimeoutId = window.setTimeout(() => {
+      setHighlightedTaskId((current) =>
+        current === targetTaskId ? null : current,
+      );
+    }, 2600);
+
+    return () => {
+      window.clearTimeout(scrollTimeoutId);
+      window.clearTimeout(highlightTimeoutId);
+    };
+  }, [targetTaskId, isTasksLoading, tasks]);
 
   const loadTasks = useCallback(async () => {
     if (!listId) {
@@ -514,6 +557,7 @@ export function ListDetailsPage() {
                     isEditingRule={
                       isUpdatingAssignmentRule && editingTask?.id === task.id
                     }
+                    isHighlighted={highlightedTaskId === task.id}
                   />
                 ))}
               </div>

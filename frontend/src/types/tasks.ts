@@ -42,6 +42,7 @@ export type TaskResponse = {
 export type TaskListItem = {
   id: string;
   title: string;
+  listId: string;
   listTitle: string;
   completed: boolean;
 };

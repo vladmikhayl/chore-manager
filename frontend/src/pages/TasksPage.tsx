@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "../components/AppLayout";
 import { TaskCard } from "../components/tasks/TaskCard";
 import {
@@ -22,12 +23,14 @@ function mapTaskResponseToTaskListItem(task: TaskResponse): TaskListItem {
   return {
     id: task.id,
     title: task.title,
+    listId: task.listId,
     listTitle: task.listTitle,
     completed: task.completed,
   };
 }
 
 export function TasksPage() {
+  const navigate = useNavigate();
   const todayDate = useMemo(() => getTodayDateString(), []);
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [tasks, setTasks] = useState<TaskListItem[]>([]);
@@ -86,6 +89,10 @@ export function TasksPage() {
     } finally {
       setProcessingTaskId(null);
     }
+  }
+
+  function handleOpenTaskDetails(task: TaskListItem) {
+    navigate(`/lists/${task.listId}?taskId=${task.id}`);
   }
 
   const completedCount = tasks.filter((task) => task.completed).length;
@@ -156,6 +163,7 @@ export function TasksPage() {
                   title={task.title}
                   listTitle={task.listTitle}
                   completed={task.completed}
+                  onOpenDetails={() => handleOpenTaskDetails(task)}
                   isToggleLoading={processingTaskId === task.id}
                   onToggleCompleted={() => void handleToggleCompleted(task)}
                 />

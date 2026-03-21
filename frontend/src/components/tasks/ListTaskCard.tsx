@@ -8,6 +8,7 @@ type ListTaskCardProps = {
   onEditAssignmentRule: (task: TaskResponse) => void;
   isDeleting: boolean;
   isEditingRule: boolean;
+  isHighlighted?: boolean;
 };
 
 const weekdayLabels: Record<number, string> = {
@@ -104,9 +105,18 @@ export function ListTaskCard({
   onEditAssignmentRule,
   isDeleting,
   isEditingRule,
+  isHighlighted = false,
 }: ListTaskCardProps) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300">
+    <article
+      id={`task-${task.id}`}
+      className={[
+        "rounded-2xl border bg-slate-50 p-4 transition-all duration-500",
+        isHighlighted
+          ? "border-indigo-400 bg-indigo-50 ring-4 ring-indigo-200 shadow-md"
+          : "border-slate-200 bg-slate-50 hover:border-slate-300",
+      ].join(" ")}
+    >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-3">
