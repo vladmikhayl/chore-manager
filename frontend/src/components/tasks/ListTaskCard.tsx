@@ -4,6 +4,8 @@ import type { TaskResponse } from "../../types/tasks";
 type ListTaskCardProps = {
   task: TaskResponse;
   members: TodoListMemberResponse[];
+  onDelete: (taskId: string) => void;
+  isDeleting: boolean;
 };
 
 const weekdayLabels: Record<number, string> = {
@@ -93,24 +95,42 @@ function formatAssignment(
   return "не указано";
 }
 
-export function ListTaskCard({ task, members }: ListTaskCardProps) {
+export function ListTaskCard({
+  task,
+  members,
+  onDelete,
+  isDeleting,
+}: ListTaskCardProps) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300">
-      <div className="flex flex-col gap-3">
-        <h3 className="break-words text-lg font-semibold text-slate-900">
-          {task.title}
-        </h3>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3">
+            <h3 className="break-words text-lg font-semibold text-slate-900">
+              {task.title}
+            </h3>
 
-        <div className="grid gap-2 text-sm text-slate-700">
-          <p>
-            <span className="font-medium text-slate-900">Повторение:</span>{" "}
-            {formatRecurrence(task)}
-          </p>
+            <div className="grid gap-2 text-sm text-slate-700">
+              <p>
+                <span className="font-medium text-slate-900">Повторение:</span>{" "}
+                {formatRecurrence(task)}
+              </p>
 
-          <p>
-            <span className="font-medium text-slate-900">Назначение:</span>{" "}
-            {formatAssignment(task, members)}
-          </p>
+              <p>
+                <span className="font-medium text-slate-900">Назначение:</span>{" "}
+                {formatAssignment(task, members)}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onDelete(task.id)}
+            disabled={isDeleting}
+            className="cursor-pointer self-start rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto sm:w-48"
+          >
+            {isDeleting ? "Удаляем..." : "Удалить задачу"}
+          </button>
         </div>
       </div>
     </article>

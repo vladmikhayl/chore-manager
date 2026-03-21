@@ -40,3 +40,7 @@ export async function createTask(
   );
   return response.data;
 }
+
+export async function deleteTask(taskId: string): Promise<void> {
+  await apiClient.delete(`/tasks/${taskId}`);
+}

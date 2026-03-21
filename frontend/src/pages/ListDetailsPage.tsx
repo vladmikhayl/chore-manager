@@ -13,7 +13,7 @@ import { parseApiError } from "../utils/parseApiError";
 import { CreateInviteModal } from "../components/lists/CreateInviteModal";
 import toast from "react-hot-toast";
 import type { CreateTaskRequest, TaskResponse } from "../types/tasks";
-import { createTask, getListTasks } from "../api/tasksApi";
+import { createTask, deleteTask, getListTasks } from "../api/tasksApi";
 import { CreateTaskModal } from "../components/tasks/CreateTaskModal";
 import { ListTaskCard } from "../components/tasks/ListTaskCard";
 
@@ -49,6 +49,7 @@ export function ListDetailsPage() {
   const [tasksErrorMessage, setTasksErrorMessage] = useState<string | null>(
     null,
   );
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
   const loadTasks = useCallback(async () => {
     if (!listId) {
@@ -224,6 +225,34 @@ export function ListDetailsPage() {
     }
   }
 
+  async function handleDeleteTask(taskId: string) {
+    if (deletingTaskId) {
+      return;
+    }
+
+    const isConfirmed = window.confirm(
+      "Вы действительно хотите удалить эту задачу? Это действие нельзя отменить.",
+    );
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    try {
+      setDeletingTaskId(taskId);
+
+      await deleteTask(taskId);
+      await loadTasks();
+
+      toast.success("Задача успешно удалена");
+    } catch (error) {
+      const parsedError = parseApiError(error);
+      toast.error(parsedError.message);
+    } finally {
+      setDeletingTaskId(null);
+    }
+  }
+
   function handleOpenTaskModal() {
     setCreateTaskErrorMessage(null);
     setIsTaskModalOpen(true);
@@ -331,7 +360,7 @@ export function ListDetailsPage() {
                   <button
                     type="button"
                     onClick={() => void handleOpenInviteModal()}
-                    className="w-full sm:w-56 rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                    className="w-full rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-56"
                   >
                     Пригласить участника
                   </button>
@@ -389,7 +418,7 @@ export function ListDetailsPage() {
               <button
                 type="button"
                 onClick={handleOpenTaskModal}
-                className="w-full sm:w-56 rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                className="w-full rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-56"
               >
                 Создать задачу
               </button>
@@ -417,6 +446,8 @@ export function ListDetailsPage() {
                     key={task.id}
                     task={task}
                     members={listDetails.members}
+                    onDelete={(taskId) => void handleDeleteTask(taskId)}
+                    isDeleting={deletingTaskId === task.id}
                   />
                 ))}
               </div>
