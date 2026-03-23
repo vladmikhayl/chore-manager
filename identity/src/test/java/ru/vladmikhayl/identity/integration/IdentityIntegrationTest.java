@@ -68,7 +68,6 @@ public class IdentityIntegrationTest {
         assertThat(saved.getLogin()).isEqualTo(login);
         assertThat(saved.getPasswordHash()).isNotBlank();
         assertThat(saved.getPasswordHash()).isNotEqualTo(password);
-        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(3);
         assertThat(saved.isDailyReminderEnabled()).isFalse();
         assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(8, 0));
     }
@@ -190,13 +189,11 @@ public class IdentityIntegrationTest {
                         .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dailyReminderEnabled").value(false))
-                .andExpect(jsonPath("$.dailyReminderTime").value("08:00:00"))
-                .andExpect(jsonPath("$.timezoneOffsetHours").value(3));
+                .andExpect(jsonPath("$.dailyReminderTime").value("08:00:00"));
 
         NotificationSettingsRequest updateRequest = NotificationSettingsRequest.builder()
                 .dailyReminderEnabled(true)
                 .dailyReminderTime(LocalTime.of(10, 0))
-                .timezoneOffsetHours(5)
                 .build();
 
         mockMvc.perform(put("/api/v1/me/notification-settings")
@@ -209,8 +206,7 @@ public class IdentityIntegrationTest {
                         .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dailyReminderEnabled").value(true))
-                .andExpect(jsonPath("$.dailyReminderTime").value("10:00:00"))
-                .andExpect(jsonPath("$.timezoneOffsetHours").value(5));
+                .andExpect(jsonPath("$.dailyReminderTime").value("10:00:00"));
     }
 
     @Test

@@ -125,7 +125,6 @@ public class IdentityControllerTest {
     @Test
     void updateNotificationSettings_success_returns200() throws Exception {
         NotificationSettingsRequest req = NotificationSettingsRequest.builder()
-                .timezoneOffsetHours(14)
                 .dailyReminderEnabled(true)
                 .dailyReminderTime(LocalTime.of(10, 0))
                 .build();
@@ -139,43 +138,5 @@ public class IdentityControllerTest {
                 .andExpect(status().isOk());
 
         verify(identityService).updateNotificationSettings(any(UUID.class), any(NotificationSettingsRequest.class));
-    }
-
-    @Test
-    void updateNotificationSettings_timezoneTooSmall_returns400() throws Exception {
-        NotificationSettingsRequest req = NotificationSettingsRequest.builder()
-                .timezoneOffsetHours(-13)
-                .build();
-
-        mockMvc.perform(put("/api/v1/me/notification-settings")
-                        .header("X-User-Id", UUID.randomUUID().toString())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").exists())
-                .andExpect(jsonPath("$.errors").isArray())
-                .andExpect(jsonPath("$.errors[0]").exists())
-                .andExpect(jsonPath("$.timestamp").exists());
-
-        verifyNoInteractions(identityService);
-    }
-
-    @Test
-    void updateNotificationSettings_timezoneTooLarge_returns400() throws Exception {
-        NotificationSettingsRequest req = NotificationSettingsRequest.builder()
-                .timezoneOffsetHours(15)
-                .build();
-
-        mockMvc.perform(put("/api/v1/me/notification-settings")
-                        .header("X-User-Id", UUID.randomUUID().toString())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").exists())
-                .andExpect(jsonPath("$.errors").isArray())
-                .andExpect(jsonPath("$.errors[0]").exists())
-                .andExpect(jsonPath("$.timestamp").exists());
-
-        verifyNoInteractions(identityService);
     }
 }

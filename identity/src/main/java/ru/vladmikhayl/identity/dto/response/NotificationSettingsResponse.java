@@ -21,10 +21,4 @@ public class NotificationSettingsResponse {
             example = "10:00"
     )
     private LocalTime dailyReminderTime;
-
-    @Schema(
-            description = "Сдвиг по часовому поясу",
-            example = "3"
-    )
-    private int timezoneOffsetHours;
 }

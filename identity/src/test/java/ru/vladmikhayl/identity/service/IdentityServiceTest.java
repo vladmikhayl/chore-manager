@@ -59,7 +59,6 @@ public class IdentityServiceTest {
 
         assertThat(saved.getLogin()).isEqualTo("username");
         assertThat(saved.getPasswordHash()).isEqualTo("HASHED");
-        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(3);
         assertThat(saved.isDailyReminderEnabled()).isFalse();
         assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(8, 0));
     }
@@ -151,7 +150,6 @@ public class IdentityServiceTest {
 
         User user = User.builder()
                 .id(userId)
-                .timezoneOffsetHours(-10)
                 .dailyReminderEnabled(true)
                 .dailyReminderTime(LocalTime.of(9, 0))
                 .build();
@@ -161,7 +159,6 @@ public class IdentityServiceTest {
 
         NotificationSettingsResponse response = identityService.getNotificationSettings(userId);
 
-        assertThat(response.getTimezoneOffsetHours()).isEqualTo(-10);
         assertThat(response.isDailyReminderEnabled()).isTrue();
         assertThat(response.getDailyReminderTime()).isEqualTo(LocalTime.of(9, 0));
     }
@@ -183,7 +180,7 @@ public class IdentityServiceTest {
         UUID userId = UUID.randomUUID();
 
         NotificationSettingsRequest req = NotificationSettingsRequest.builder()
-                .timezoneOffsetHours(5)
+                .dailyReminderEnabled(true)
                 .build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
@@ -196,40 +193,11 @@ public class IdentityServiceTest {
     }
 
     @Test
-    void updateNotificationSettings_onlyTimezone_updatesOffsetAndDoesNotTouchOthers() {
-        UUID userId = UUID.randomUUID();
-
-        User user = User.builder()
-                .id(userId)
-                .timezoneOffsetHours(3)
-                .dailyReminderEnabled(false)
-                .dailyReminderTime(LocalTime.of(8, 0))
-                .build();
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        NotificationSettingsRequest req = NotificationSettingsRequest.builder()
-                .timezoneOffsetHours(-10)
-                .build();
-
-        identityService.updateNotificationSettings(userId, req);
-
-        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(captor.capture());
-        User saved = captor.getValue();
-
-        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(-10);
-        assertThat(saved.isDailyReminderEnabled()).isFalse();
-        assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(8, 0));
-    }
-
-    @Test
     void updateNotificationSettings_onlyTime_updatesTimeAndDoesNotTouchOthers() {
         UUID userId = UUID.randomUUID();
 
         User user = User.builder()
                 .id(userId)
-                .timezoneOffsetHours(3)
                 .dailyReminderEnabled(true)
                 .dailyReminderTime(LocalTime.of(8, 0))
                 .build();
@@ -248,7 +216,6 @@ public class IdentityServiceTest {
 
         assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(10, 0));
         assertThat(saved.isDailyReminderEnabled()).isTrue();
-        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(3);
     }
 
     @Test
@@ -257,7 +224,6 @@ public class IdentityServiceTest {
 
         User user = User.builder()
                 .id(userId)
-                .timezoneOffsetHours(-5)
                 .dailyReminderEnabled(false)
                 .dailyReminderTime(LocalTime.of(15, 0))
                 .build();
@@ -276,7 +242,6 @@ public class IdentityServiceTest {
 
         assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(15, 0));
         assertThat(saved.isDailyReminderEnabled()).isTrue();
-        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(-5);
     }
 
     @Test
@@ -285,7 +250,6 @@ public class IdentityServiceTest {
 
         User user = User.builder()
                 .id(userId)
-                .timezoneOffsetHours(3)
                 .dailyReminderEnabled(false)
                 .dailyReminderTime(LocalTime.of(8, 0))
                 .build();
@@ -293,7 +257,6 @@ public class IdentityServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         NotificationSettingsRequest req = NotificationSettingsRequest.builder()
-                .timezoneOffsetHours(5)
                 .dailyReminderEnabled(true)
                 .dailyReminderTime(LocalTime.of(7, 0))
                 .build();
@@ -304,7 +267,6 @@ public class IdentityServiceTest {
         verify(userRepository).save(captor.capture());
         User saved = captor.getValue();
 
-        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(5);
         assertThat(saved.isDailyReminderEnabled()).isTrue();
         assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(7, 0));
     }
@@ -315,7 +277,6 @@ public class IdentityServiceTest {
 
         User user = User.builder()
                 .id(userId)
-                .timezoneOffsetHours(3)
                 .dailyReminderEnabled(true)
                 .dailyReminderTime(LocalTime.of(8, 0))
                 .build();
@@ -330,7 +291,6 @@ public class IdentityServiceTest {
         verify(userRepository).save(captor.capture());
         User saved = captor.getValue();
 
-        assertThat(saved.getTimezoneOffsetHours()).isEqualTo(3);
         assertThat(saved.isDailyReminderEnabled()).isTrue();
         assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(8, 0));
     }

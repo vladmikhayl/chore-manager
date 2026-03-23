@@ -36,7 +36,6 @@ public class IdentityService {
         User user = User.builder()
                 .login(login)
                 .passwordHash(passwordEncoder.encode(password))
-                .timezoneOffsetHours(3)
                 .dailyReminderEnabled(false)
                 .dailyReminderTime(LocalTime.of(8, 0))
                 .build();
@@ -62,8 +61,7 @@ public class IdentityService {
 
         return new NotificationSettingsResponse(
                 user.isDailyReminderEnabled(),
-                user.getDailyReminderTime(),
-                user.getTimezoneOffsetHours()
+                user.getDailyReminderTime()
         );
     }
 
@@ -71,13 +69,8 @@ public class IdentityService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Пользователь не найден"));
 
-        Integer timezoneOffsetHours = request.getTimezoneOffsetHours();
         Boolean dailyReminderEnabled = request.getDailyReminderEnabled();
         LocalTime dailyReminderTime = request.getDailyReminderTime();
-
-        if (timezoneOffsetHours != null) {
-            user.setTimezoneOffsetHours(timezoneOffsetHours);
-        }
 
         if (dailyReminderTime != null) {
             user.setDailyReminderTime(dailyReminderTime);

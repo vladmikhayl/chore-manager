@@ -32,7 +32,6 @@ public class InternalIdentityServiceTest {
                 .id(userId)
                 .login("user")
                 .passwordHash("HASHED")
-                .timezoneOffsetHours(3)
                 .dailyReminderEnabled(false)
                 .dailyReminderTime(null)
                 .build();
