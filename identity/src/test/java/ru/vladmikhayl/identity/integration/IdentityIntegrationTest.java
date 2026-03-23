@@ -169,7 +169,7 @@ public class IdentityIntegrationTest {
     }
 
     @Test
-    void notificationSettings_getDefaults_thenUpdate_thenGetUpdated() throws Exception {
+    void profile_getDefaults_thenUpdate_thenGetUpdated() throws Exception {
         String login = randomLogin();
         String password = "password";
 
@@ -185,9 +185,10 @@ public class IdentityIntegrationTest {
 
         UUID userId = userRepository.findByLogin(login).orElseThrow().getId();
 
-        mockMvc.perform(get("/api/v1/me/notification-settings")
+        mockMvc.perform(get("/api/v1/me/profile")
                         .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.login").value(login))
                 .andExpect(jsonPath("$.dailyReminderEnabled").value(false))
                 .andExpect(jsonPath("$.dailyReminderTime").value("08:00:00"));
 
@@ -202,9 +203,10 @@ public class IdentityIntegrationTest {
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/v1/me/notification-settings")
+        mockMvc.perform(get("/api/v1/me/profile")
                         .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.login").value(login))
                 .andExpect(jsonPath("$.dailyReminderEnabled").value(true))
                 .andExpect(jsonPath("$.dailyReminderTime").value("10:00:00"));
     }

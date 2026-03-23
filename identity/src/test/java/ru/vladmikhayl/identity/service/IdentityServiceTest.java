@@ -14,7 +14,7 @@ import ru.vladmikhayl.identity.dto.request.LoginRequest;
 import ru.vladmikhayl.identity.dto.request.NotificationSettingsRequest;
 import ru.vladmikhayl.identity.dto.request.RegisterRequest;
 import ru.vladmikhayl.identity.dto.response.LoginResponse;
-import ru.vladmikhayl.identity.dto.response.NotificationSettingsResponse;
+import ru.vladmikhayl.identity.dto.response.ProfileResponse;
 import ru.vladmikhayl.identity.entity.User;
 import ru.vladmikhayl.identity.repository.UserRepository;
 import ru.vladmikhayl.identity.security.JwtService;
@@ -145,11 +145,12 @@ public class IdentityServiceTest {
     }
 
     @Test
-    void getNotificationSettings_success_returnsSettings() {
+    void getProfile_success_returnsSettings() {
         UUID userId = UUID.randomUUID();
 
         User user = User.builder()
                 .id(userId)
+                .login("vlad")
                 .dailyReminderEnabled(true)
                 .dailyReminderTime(LocalTime.of(9, 0))
                 .build();
@@ -157,20 +158,21 @@ public class IdentityServiceTest {
         when(userRepository.findById(userId))
                 .thenReturn(Optional.of(user));
 
-        NotificationSettingsResponse response = identityService.getNotificationSettings(userId);
+        ProfileResponse response = identityService.getProfile(userId);
 
+        assertThat(response.getLogin()).isEqualTo("vlad");
         assertThat(response.isDailyReminderEnabled()).isTrue();
         assertThat(response.getDailyReminderTime()).isEqualTo(LocalTime.of(9, 0));
     }
 
     @Test
-    void getNotificationSettings_userNotFound_throwsEntityNotFound() {
+    void getProfile_userNotFound_throwsEntityNotFound() {
         UUID userId = UUID.randomUUID();
 
         when(userRepository.findById(userId))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> identityService.getNotificationSettings(userId))
+        assertThatThrownBy(() -> identityService.getProfile(userId))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Пользователь не найден");
     }

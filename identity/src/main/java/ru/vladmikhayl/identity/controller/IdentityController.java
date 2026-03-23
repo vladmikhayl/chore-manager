@@ -16,7 +16,7 @@ import ru.vladmikhayl.identity.dto.request.LoginRequest;
 import ru.vladmikhayl.identity.dto.request.NotificationSettingsRequest;
 import ru.vladmikhayl.identity.dto.request.RegisterRequest;
 import ru.vladmikhayl.identity.dto.response.LoginResponse;
-import ru.vladmikhayl.identity.dto.response.NotificationSettingsResponse;
+import ru.vladmikhayl.identity.dto.response.ProfileResponse;
 import ru.vladmikhayl.identity.service.IdentityService;
 
 import java.util.UUID;
@@ -58,17 +58,17 @@ public class IdentityController {
         return ResponseEntity.ok(identityService.login(request));
     }
 
-    @GetMapping("/me/notification-settings")
-    @Operation(summary = "Получить информацию о настройках напоминаний")
+    @GetMapping("/me/profile")
+    @Operation(summary = "Получить данные профиля текущего пользователя")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Успешно"),
             @ApiResponse(responseCode = "401", description = "Передан некорректный JWT", content = @Content)
     })
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<NotificationSettingsResponse> getNotificationSettings(
+    public ResponseEntity<ProfileResponse> getProfile(
             @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId
     ) {
-        NotificationSettingsResponse response = identityService.getNotificationSettings(userId);
+        ProfileResponse response = identityService.getProfile(userId);
         return ResponseEntity.ok(response);
     }
 
