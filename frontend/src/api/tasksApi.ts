@@ -1,6 +1,7 @@
 import { apiClient } from "./apiClient";
 import type {
   CreateTaskRequest,
+  TaskCompletionStatusResponse,
   TaskResponse,
   UpdateAssignmentRuleRequest,
 } from "../types/tasks";
@@ -32,6 +33,17 @@ export async function deleteTaskCompletion(
   date: string,
 ): Promise<void> {
   await apiClient.delete(`/tasks/${taskId}/completions/${date}`);
+}
+
+export async function getTaskCompletion(
+  taskId: string,
+  date: string,
+): Promise<TaskCompletionStatusResponse> {
+  const response = await apiClient.get<TaskCompletionStatusResponse>(
+    `/tasks/${taskId}/completions/${date}`,
+  );
+
+  return response.data;
 }
 
 export async function createTask(

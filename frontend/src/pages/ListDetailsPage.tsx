@@ -463,7 +463,7 @@ export function ListDetailsPage() {
                   <button
                     type="button"
                     onClick={() => void handleOpenInviteModal()}
-                    className="w-full rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-56"
+                    className="cursor-pointer w-full rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-56"
                   >
                     Пригласить участника
                   </button>
@@ -521,7 +521,7 @@ export function ListDetailsPage() {
               <button
                 type="button"
                 onClick={handleOpenTaskModal}
-                className="w-full rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-56"
+                className="cursor-pointer w-full rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-56"
               >
                 Создать задачу
               </button>

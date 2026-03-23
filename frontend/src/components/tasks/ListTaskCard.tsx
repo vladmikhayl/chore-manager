@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { TodoListMemberResponse } from "../../types/lists";
 import type { TaskResponse } from "../../types/tasks";
+import { TaskCompletionStatusModal } from "./TaskCompletionStatusModal";
 
 type ListTaskCardProps = {
   task: TaskResponse;
@@ -107,57 +109,82 @@ export function ListTaskCard({
   isEditingRule,
   isHighlighted = false,
 }: ListTaskCardProps) {
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+
   return (
-    <article
-      id={`task-${task.id}`}
-      className={[
-        "rounded-2xl border bg-slate-50 p-4 transition-all duration-500",
-        isHighlighted
-          ? "border-indigo-400 bg-indigo-50 ring-4 ring-indigo-200 shadow-md"
-          : "border-slate-200 bg-slate-50 hover:border-slate-300",
-      ].join(" ")}
-    >
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-3">
-            <h3 className="break-words text-lg font-semibold text-slate-900">
-              {task.title}
-            </h3>
+    <>
+      <article
+        id={`task-${task.id}`}
+        className={[
+          "rounded-2xl border bg-slate-50 p-4 transition-all duration-500",
+          isHighlighted
+            ? "border-indigo-400 bg-indigo-50 ring-4 ring-indigo-200 shadow-md"
+            : "border-slate-200 bg-slate-50 hover:border-slate-300",
+        ].join(" ")}
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <h3 className="break-words text-lg font-semibold text-slate-900">
+                {task.title}
+              </h3>
 
-            <div className="grid gap-2 text-sm text-slate-700">
-              <p>
-                <span className="font-medium text-slate-900">Повторение:</span>{" "}
-                {formatRecurrence(task)}
-              </p>
+              <div className="mt-3 grid gap-2 text-sm text-slate-700">
+                <p>
+                  <span className="font-medium text-slate-900">
+                    Повторение:
+                  </span>{" "}
+                  {formatRecurrence(task)}
+                </p>
 
-              <p>
-                <span className="font-medium text-slate-900">Назначение:</span>{" "}
-                {formatAssignment(task, members)}
-              </p>
+                <p>
+                  <span className="font-medium text-slate-900">
+                    Назначение:
+                  </span>{" "}
+                  {formatAssignment(task, members)}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsCompletionModalOpen(true)}
+                disabled={isDeleting || isEditingRule}
+                className="mt-3 cursor-pointer text-sm font-medium text-indigo-600 transition hover:text-indigo-700 hover:underline disabled:cursor-not-allowed disabled:opacity-60 disabled:no-underline"
+              >
+                История выполнения
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 self-start sm:self-auto lg:w-52 lg:justify-center">
+              <button
+                type="button"
+                onClick={() => onEditAssignmentRule(task)}
+                disabled={isDeleting || isEditingRule}
+                className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isEditingRule ? "Сохраняем..." : "Редактировать правило"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onDelete(task.id)}
+                disabled={isDeleting || isEditingRule}
+                className="cursor-pointer rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeleting ? "Удаляем..." : "Удалить задачу"}
+              </button>
             </div>
           </div>
-
-          <div className="flex flex-col gap-2 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => onEditAssignmentRule(task)}
-              disabled={isDeleting || isEditingRule}
-              className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-52"
-            >
-              {isEditingRule ? "Сохраняем..." : "Редактировать правило"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onDelete(task.id)}
-              disabled={isDeleting || isEditingRule}
-              className="cursor-pointer rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-52"
-            >
-              {isDeleting ? "Удаляем..." : "Удалить задачу"}
-            </button>
-          </div>
         </div>
-      </div>
-    </article>
+      </article>
+
+      {isCompletionModalOpen && (
+        <TaskCompletionStatusModal
+          taskId={task.id}
+          taskTitle={task.title}
+          onClose={() => setIsCompletionModalOpen(false)}
+        />
+      )}
+    </>
   );
 }

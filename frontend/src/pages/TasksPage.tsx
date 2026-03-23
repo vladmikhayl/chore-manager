@@ -9,6 +9,7 @@ import {
 } from "../api/tasksApi";
 import type { TaskListItem, TaskResponse } from "../types/tasks";
 import { parseApiError } from "../utils/parseApiError";
+import { TaskDatePicker } from "../components/tasks/TaskDatePicker";
 
 function getTodayDateString(): string {
   const today = new Date();
@@ -105,21 +106,14 @@ export function TasksPage() {
     >
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-2 px-4 sm:flex-row sm:items-center sm:gap-4">
-            <label
-              htmlFor="tasks-date"
-              className="text-sm font-medium text-slate-700"
-            >
-              Выберите дату
-            </label>
-
-            <input
+          <div className="px-4">
+            <TaskDatePicker
               id="tasks-date"
-              type="date"
+              label="Выберите дату"
               value={selectedDate}
               min={todayDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full max-w-xs rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              onChange={setSelectedDate}
+              className="max-w-xs"
             />
           </div>
 

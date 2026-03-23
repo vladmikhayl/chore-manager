@@ -46,3 +46,11 @@ export type TaskListItem = {
   listTitle: string;
   completed: boolean;
 };
+
+export type TaskCompletionStatusResponse = {
+  date: string;
+  completed: boolean;
+  completedByUserId: string | null;
+  completedByLogin: string | null;
+  completedAt: string | null;
+};
