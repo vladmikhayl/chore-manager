@@ -11,10 +11,17 @@ import ru.vladmikhayl.identity.dto.request.NotificationSettingsRequest;
 import ru.vladmikhayl.identity.dto.request.RegisterRequest;
 import ru.vladmikhayl.identity.dto.response.LoginResponse;
 import ru.vladmikhayl.identity.dto.response.ProfileResponse;
+import ru.vladmikhayl.identity.entity.TelegramLinkToken;
 import ru.vladmikhayl.identity.entity.User;
+import ru.vladmikhayl.identity.repository.TelegramLinkTokenRepository;
 import ru.vladmikhayl.identity.repository.UserRepository;
 import ru.vladmikhayl.identity.security.JwtService;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.UUID;
 
@@ -22,8 +29,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class IdentityService {
     private final UserRepository userRepository;
+    private final TelegramLinkTokenRepository telegramLinkTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final Clock clock;
 
     public void register(RegisterRequest registerRequest) {
         String login = registerRequest.getLogin();
@@ -82,5 +91,49 @@ public class IdentityService {
         }
 
         userRepository.save(user);
+    }
+
+    public String createTelegramLinkToken(UUID userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new EntityNotFoundException("Пользователь не найден");
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime expiresAt = now.plusMinutes(10);
+
+        String rawToken = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
+        String tokenHash = sha256(rawToken);
+
+        TelegramLinkToken telegramLinkToken = TelegramLinkToken.builder()
+                .userId(userId)
+                .tokenHash(tokenHash)
+                .createdAt(now)
+                .expiresAt(expiresAt)
+                .usedAt(null)
+                .build();
+
+        telegramLinkTokenRepository.save(telegramLinkToken);
+
+        return rawToken;
+    }
+
+    private String sha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            return bytesToHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 недоступен", e);
+        }
+    }
+
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder builder = new StringBuilder(bytes.length * 2);
+
+        for (byte b : bytes) {
+            builder.append(String.format("%02x", b));
+        }
+
+        return builder.toString();
     }
 }

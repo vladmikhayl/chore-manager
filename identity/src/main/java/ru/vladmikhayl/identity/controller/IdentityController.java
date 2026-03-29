@@ -87,4 +87,18 @@ public class IdentityController {
         identityService.updateNotificationSettings(userId, request);
         return ResponseEntity.status(HttpStatus.OK).build();
     }
+
+    @PostMapping("/me/telegram/link-token")
+    @Operation(summary = "Создать одноразовый токен для привязки Telegram")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Успешно"),
+            @ApiResponse(responseCode = "401", description = "Передан некорректный JWT", content = @Content)
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<String> createTelegramLinkToken(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId
+    ) {
+        String response = identityService.createTelegramLinkToken(userId);
+        return ResponseEntity.ok(response);
+    }
 }
