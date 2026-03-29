@@ -32,6 +32,7 @@ public class IdentityService {
     private final TelegramLinkTokenRepository telegramLinkTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final HashService hashService;
     private final Clock clock;
 
     public void register(RegisterRequest registerRequest) {
@@ -102,7 +103,7 @@ public class IdentityService {
         LocalDateTime expiresAt = now.plusMinutes(10);
 
         String rawToken = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
-        String tokenHash = sha256(rawToken);
+        String tokenHash = hashService.sha256(rawToken);
 
         TelegramLinkToken telegramLinkToken = TelegramLinkToken.builder()
                 .userId(userId)
@@ -115,25 +116,5 @@ public class IdentityService {
         telegramLinkTokenRepository.save(telegramLinkToken);
 
         return rawToken;
-    }
-
-    private String sha256(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 недоступен", e);
-        }
-    }
-
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder builder = new StringBuilder(bytes.length * 2);
-
-        for (byte b : bytes) {
-            builder.append(String.format("%02x", b));
-        }
-
-        return builder.toString();
     }
 }

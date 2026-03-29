@@ -40,6 +40,9 @@ public class IdentityServiceTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private HashService hashService;
+
     @InjectMocks
     private IdentityService identityService;
 
@@ -325,6 +328,7 @@ public class IdentityServiceTest {
         ZoneId zoneId = ZoneId.of("Europe/Moscow");
 
         when(userRepository.existsById(userId)).thenReturn(true);
+        when(hashService.sha256(any())).thenReturn("HASHED");
         when(clock.instant()).thenReturn(nowInstant);
         when(clock.getZone()).thenReturn(zoneId);
 
