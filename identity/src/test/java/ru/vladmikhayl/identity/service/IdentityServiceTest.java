@@ -15,11 +15,13 @@ import ru.vladmikhayl.identity.dto.request.NotificationSettingsRequest;
 import ru.vladmikhayl.identity.dto.request.RegisterRequest;
 import ru.vladmikhayl.identity.dto.response.LoginResponse;
 import ru.vladmikhayl.identity.dto.response.ProfileResponse;
+import ru.vladmikhayl.identity.entity.TelegramLinkToken;
 import ru.vladmikhayl.identity.entity.User;
+import ru.vladmikhayl.identity.repository.TelegramLinkTokenRepository;
 import ru.vladmikhayl.identity.repository.UserRepository;
 import ru.vladmikhayl.identity.security.JwtService;
 
-import java.time.LocalTime;
+import java.time.*;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,6 +42,12 @@ public class IdentityServiceTest {
 
     @InjectMocks
     private IdentityService identityService;
+
+    @Mock
+    private TelegramLinkTokenRepository telegramLinkTokenRepository;
+
+    @Mock
+    private Clock clock;
 
     @Test
     void register_success_savesUserWithDefaults() {
@@ -295,5 +303,45 @@ public class IdentityServiceTest {
 
         assertThat(saved.isDailyReminderEnabled()).isTrue();
         assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(8, 0));
+    }
+
+    @Test
+    void createTelegramLinkToken_userNotFound_throwsEntityNotFound() {
+        UUID userId = UUID.randomUUID();
+
+        when(userRepository.existsById(userId)).thenReturn(false);
+
+        assertThatThrownBy(() -> identityService.createTelegramLinkToken(userId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Пользователь не найден");
+
+        verify(telegramLinkTokenRepository, never()).save(any());
+    }
+
+    @Test
+    void createTelegramLinkToken_success_savesTokenAndReturnsRawToken() {
+        UUID userId = UUID.randomUUID();
+        Instant nowInstant = Instant.parse("2026-03-29T12:00:00Z");
+        ZoneId zoneId = ZoneId.of("Europe/Moscow");
+
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(clock.instant()).thenReturn(nowInstant);
+        when(clock.getZone()).thenReturn(zoneId);
+
+        String rawToken = identityService.createTelegramLinkToken(userId);
+
+        ArgumentCaptor<TelegramLinkToken> captor = ArgumentCaptor.forClass(TelegramLinkToken.class);
+        verify(telegramLinkTokenRepository).save(captor.capture());
+        TelegramLinkToken saved = captor.getValue();
+
+        assertThat(rawToken).isNotBlank();
+
+        assertThat(saved.getUserId()).isEqualTo(userId);
+        assertThat(saved.getCreatedAt()).isEqualTo(LocalDateTime.of(2026, 3, 29, 15, 0));
+        assertThat(saved.getExpiresAt()).isEqualTo(LocalDateTime.of(2026, 3, 29, 15, 10));
+        assertThat(saved.getUsedAt()).isNull();
+
+        assertThat(saved.getTokenHash()).isNotBlank();
+        assertThat(saved.getTokenHash()).isNotEqualTo(rawToken);
     }
 }
