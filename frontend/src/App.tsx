@@ -7,6 +7,7 @@ import { TasksPage } from "./pages/TasksPage";
 import { ListsPage } from "./pages/ListsPage";
 import { ListDetailsPage } from "./pages/ListDetailsPage";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
+import { ProfilePage } from "./pages/ProfilePage";
 
 export default function App() {
   return (
@@ -64,6 +65,15 @@ export default function App() {
           element={
             <PrivateRoute>
               <AcceptInvitePage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <ProfilePage />
             </PrivateRoute>
           }
         />
