@@ -185,6 +185,12 @@ public class IdentityIntegrationTest {
 
         UUID userId = userRepository.findByLogin(login).orElseThrow().getId();
 
+        mockMvc.perform(get("/api/v1/me/telegram-link")
+                        .header("X-User-Id", userId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.linked").value(false))
+                .andExpect(jsonPath("$.chatId").isEmpty());
+
         mockMvc.perform(get("/api/v1/me/profile")
                         .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
@@ -193,7 +199,6 @@ public class IdentityIntegrationTest {
 
         NotificationSettingsRequest updateRequest = NotificationSettingsRequest.builder()
                 .dailyReminderEnabled(true)
-                .dailyReminderTime(LocalTime.of(10, 0))
                 .build();
 
         mockMvc.perform(put("/api/v1/me/notification-settings")

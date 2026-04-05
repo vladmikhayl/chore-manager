@@ -15,10 +15,13 @@ import ru.vladmikhayl.identity.dto.request.NotificationSettingsRequest;
 import ru.vladmikhayl.identity.dto.request.RegisterRequest;
 import ru.vladmikhayl.identity.dto.response.LoginResponse;
 import ru.vladmikhayl.identity.dto.response.ProfileResponse;
+import ru.vladmikhayl.identity.dto.response.TelegramLinkResponse;
 import ru.vladmikhayl.identity.entity.TelegramLinkToken;
 import ru.vladmikhayl.identity.entity.User;
+import ru.vladmikhayl.identity.entity.UserTelegramAccount;
 import ru.vladmikhayl.identity.repository.TelegramLinkTokenRepository;
 import ru.vladmikhayl.identity.repository.UserRepository;
+import ru.vladmikhayl.identity.repository.UserTelegramAccountRepository;
 import ru.vladmikhayl.identity.security.JwtService;
 
 import java.time.*;
@@ -48,6 +51,9 @@ public class IdentityServiceTest {
 
     @Mock
     private TelegramLinkTokenRepository telegramLinkTokenRepository;
+
+    @Mock
+    private UserTelegramAccountRepository userTelegramAccountRepository;
 
     @Mock
     private Clock clock;
@@ -346,5 +352,50 @@ public class IdentityServiceTest {
 
         assertThat(saved.getTokenHash()).isNotBlank();
         assertThat(saved.getTokenHash()).isNotEqualTo(rawToken);
+    }
+
+    @Test
+    void getTelegramLink_userNotFound_throwsNotFound() {
+        UUID userId = UUID.randomUUID();
+
+        when(userRepository.existsById(userId)).thenReturn(false);
+
+        assertThatThrownBy(() -> identityService.getTelegramLink(userId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Пользователь не найден");
+
+        verify(userTelegramAccountRepository, never()).findById(any());
+    }
+
+    @Test
+    void getTelegramLink_telegramNotLinked_returnsUnlinkedResponse() {
+        UUID userId = UUID.randomUUID();
+
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(userTelegramAccountRepository.findById(userId)).thenReturn(Optional.empty());
+
+        TelegramLinkResponse result = identityService.getTelegramLink(userId);
+
+        assertThat(result.isLinked()).isFalse();
+        assertThat(result.getChatId()).isNull();
+    }
+
+    @Test
+    void getTelegramLink_telegramLinked_returnsLinkedResponse() {
+        UUID userId = UUID.randomUUID();
+
+        UserTelegramAccount telegramAccount = UserTelegramAccount.builder()
+                .userId(userId)
+                .chatId(123456789L)
+                .build();
+
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(userTelegramAccountRepository.findById(userId))
+                .thenReturn(Optional.of(telegramAccount));
+
+        TelegramLinkResponse result = identityService.getTelegramLink(userId);
+
+        assertThat(result.isLinked()).isTrue();
+        assertThat(result.getChatId()).isEqualTo(123456789L);
     }
 }
