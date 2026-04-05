@@ -1,5 +1,13 @@
 export type ProfileResponse = {
   login: string;
   dailyReminderEnabled: boolean;
-  dailyReminderTime: string;
+};
+
+export type TelegramLinkResponse = {
+  linked: boolean;
+  chatId: number | null;
+};
+
+export type NotificationSettingsRequest = {
+  dailyReminderEnabled?: boolean;
 };
