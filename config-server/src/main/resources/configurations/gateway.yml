@@ -48,6 +48,18 @@ spring:
           filters:
             - SetPath=/v3/api-docs
 
+        - id: integrations
+          uri: lb://INTEGRATIONS
+          predicates:
+            - Path=/api/v1/integrations/**
+
+        - id: integrations-openapi
+          uri: lb://INTEGRATIONS
+          predicates:
+            - Path=/v3/api-docs/integrations
+          filters:
+            - SetPath=/v3/api-docs
+
 springdoc:
   api-docs:
     enabled: true
@@ -58,6 +70,8 @@ springdoc:
         url: /v3/api-docs/identity
       - name: Task management
         url: /v3/api-docs/task-management
+      - name: Integrations
+        url: /v3/api-docs/integrations
 
 logging:
   level:

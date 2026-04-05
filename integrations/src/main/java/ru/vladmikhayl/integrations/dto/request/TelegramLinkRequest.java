@@ -1,8 +1,6 @@
-package ru.vladmikhayl.identity.dto.request;
+package ru.vladmikhayl.integrations.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,11 +12,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "Внутренний запрос на привязку Telegram-аккаунта к пользователю")
 public class TelegramLinkRequest {
-    @NotBlank
     @Schema(description = "Одноразовый токен привязки Telegram", example = "abcdef1234567890")
     private String token;
 
-    @NotNull
     @Schema(description = "Идентификатор чата Telegram", example = "123456789")
     private Long chatId;
 }
