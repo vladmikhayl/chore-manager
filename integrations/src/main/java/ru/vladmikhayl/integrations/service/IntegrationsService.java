@@ -29,7 +29,7 @@ public class IntegrationsService {
                     Чтобы начать получать уведомления, перейдите в приложение и запустите подключение Telegram там""";
 
     private static final String DEFAULT_LINK_ERROR_MESSAGE =
-            "Что-то пошло не так. Пожалуйста, попробуйте подключить Telegram из приложения заново";
+            "Что-то пошло не так. Пожалуйста, попробуйте ещё раз";
 
     private final IdentityClient identityClient;
     private final TelegramBotClient telegramBotClient;
