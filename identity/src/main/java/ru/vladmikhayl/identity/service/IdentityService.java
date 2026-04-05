@@ -126,4 +126,12 @@ public class IdentityService {
                 .map(account -> new TelegramLinkResponse(true, account.getChatId()))
                 .orElseGet(() -> new TelegramLinkResponse(false, null));
     }
+
+    public void deleteTelegramLink(UUID userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new EntityNotFoundException("Пользователь не найден");
+        }
+
+        userTelegramAccountRepository.deleteById(userId);
+    }
 }

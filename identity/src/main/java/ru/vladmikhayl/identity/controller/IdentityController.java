@@ -87,6 +87,20 @@ public class IdentityController {
         return ResponseEntity.ok(response);
     }
 
+    @DeleteMapping("/me/telegram-link")
+    @Operation(summary = "Отвязать Telegram текущего пользователя")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Успешно"),
+            @ApiResponse(responseCode = "401", description = "Передан некорректный JWT", content = @Content)
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<Void> deleteTelegramLink(
+            @RequestHeader("X-User-Id") @Parameter(hidden = true) UUID userId
+    ) {
+        identityService.deleteTelegramLink(userId);
+        return ResponseEntity.ok().build();
+    }
+
     @PutMapping("/me/notification-settings")
     @Operation(summary = "Изменить информацию о настройках напоминаний")
     @ApiResponses(value = {
