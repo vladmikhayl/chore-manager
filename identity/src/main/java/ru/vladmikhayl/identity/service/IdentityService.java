@@ -11,10 +11,12 @@ import ru.vladmikhayl.identity.dto.request.NotificationSettingsRequest;
 import ru.vladmikhayl.identity.dto.request.RegisterRequest;
 import ru.vladmikhayl.identity.dto.response.LoginResponse;
 import ru.vladmikhayl.identity.dto.response.ProfileResponse;
+import ru.vladmikhayl.identity.dto.response.TelegramLinkResponse;
 import ru.vladmikhayl.identity.entity.TelegramLinkToken;
 import ru.vladmikhayl.identity.entity.User;
 import ru.vladmikhayl.identity.repository.TelegramLinkTokenRepository;
 import ru.vladmikhayl.identity.repository.UserRepository;
+import ru.vladmikhayl.identity.repository.UserTelegramAccountRepository;
 import ru.vladmikhayl.identity.security.JwtService;
 
 import java.time.Clock;
@@ -27,6 +29,7 @@ import java.util.UUID;
 public class IdentityService {
     private final UserRepository userRepository;
     private final TelegramLinkTokenRepository telegramLinkTokenRepository;
+    private final UserTelegramAccountRepository userTelegramAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final HashService hashService;
@@ -112,5 +115,15 @@ public class IdentityService {
         telegramLinkTokenRepository.save(telegramLinkToken);
 
         return rawToken;
+    }
+
+    public TelegramLinkResponse getTelegramLink(UUID userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new EntityNotFoundException("Пользователь не найден");
+        }
+
+        return userTelegramAccountRepository.findById(userId)
+                .map(account -> new TelegramLinkResponse(true, account.getChatId()))
+                .orElseGet(() -> new TelegramLinkResponse(false, null));
     }
 }
