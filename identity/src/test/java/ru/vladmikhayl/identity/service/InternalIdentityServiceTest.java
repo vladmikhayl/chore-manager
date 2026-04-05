@@ -7,6 +7,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import ru.vladmikhayl.identity.dto.request.TelegramLinkRequest;
 import ru.vladmikhayl.identity.entity.TelegramLinkToken;
@@ -151,6 +152,38 @@ public class InternalIdentityServiceTest {
     }
 
     @Test
+    void linkTelegramAccount_userAlreadyHasTelegramLinked_throwsBadCredentials() {
+        UUID userId = UUID.randomUUID();
+
+        TelegramLinkRequest request = new TelegramLinkRequest("raw-token", 123456789L);
+
+        TelegramLinkToken telegramLinkToken = TelegramLinkToken.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .tokenHash("HASHED_TOKEN")
+                .createdAt(LocalDateTime.of(2026, 3, 29, 12, 0))
+                .expiresAt(LocalDateTime.of(2026, 3, 29, 12, 10))
+                .usedAt(null)
+                .build();
+
+        when(hashService.sha256("raw-token")).thenReturn("HASHED_TOKEN");
+        when(telegramLinkTokenRepository.findByTokenHash("HASHED_TOKEN"))
+                .thenReturn(Optional.of(telegramLinkToken));
+
+        when(clock.instant()).thenReturn(Instant.parse("2026-03-29T12:05:00Z"));
+        when(clock.getZone()).thenReturn(ZoneId.of("UTC"));
+
+        when(userTelegramAccountRepository.existsById(userId)).thenReturn(true);
+
+        assertThatThrownBy(() -> internalIdentityService.linkTelegramAccount(request))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessage("Telegram уже привязан к этому аккаунту");
+
+        verify(userTelegramAccountRepository, never()).save(any());
+        verify(telegramLinkTokenRepository, never()).save(any(TelegramLinkToken.class));
+    }
+
+    @Test
     void linkTelegramAccount_success_savesTelegramAccountAndMarksTokenUsed() {
         UUID userId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.of(2026, 3, 29, 12, 5);
@@ -172,6 +205,8 @@ public class InternalIdentityServiceTest {
 
         when(clock.instant()).thenReturn(Instant.parse("2026-03-29T12:05:00Z"));
         when(clock.getZone()).thenReturn(ZoneId.of("UTC"));
+
+        when(userTelegramAccountRepository.existsById(userId)).thenReturn(false);
 
         internalIdentityService.linkTelegramAccount(request);
 

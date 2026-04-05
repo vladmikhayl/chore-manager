@@ -2,6 +2,7 @@ package ru.vladmikhayl.identity.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,10 @@ public class InternalIdentityService {
 
         if (!telegramLinkToken.getExpiresAt().isAfter(now)) {
             throw new BadCredentialsException("Срок действия токена привязки истёк");
+        }
+
+        if (userTelegramAccountRepository.existsById(telegramLinkToken.getUserId())) {
+            throw new DataIntegrityViolationException("Telegram уже привязан к этому аккаунту");
         }
 
         UserTelegramAccount userTelegramAccount = UserTelegramAccount.builder()
