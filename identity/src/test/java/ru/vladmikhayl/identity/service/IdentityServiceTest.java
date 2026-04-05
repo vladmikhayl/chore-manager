@@ -398,4 +398,28 @@ public class IdentityServiceTest {
         assertThat(result.isLinked()).isTrue();
         assertThat(result.getChatId()).isEqualTo(123456789L);
     }
+
+    @Test
+    void deleteTelegramLink_userNotFound_throwsNotFound() {
+        UUID userId = UUID.randomUUID();
+
+        when(userRepository.existsById(userId)).thenReturn(false);
+
+        assertThatThrownBy(() -> identityService.deleteTelegramLink(userId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Пользователь не найден");
+
+        verify(userTelegramAccountRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteTelegramLink_userExists_deletesTelegramLink() {
+        UUID userId = UUID.randomUUID();
+
+        when(userRepository.existsById(userId)).thenReturn(true);
+
+        identityService.deleteTelegramLink(userId);
+
+        verify(userTelegramAccountRepository).deleteById(userId);
+    }
 }
