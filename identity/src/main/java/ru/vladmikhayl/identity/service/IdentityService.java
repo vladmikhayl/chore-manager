@@ -17,9 +17,6 @@ import ru.vladmikhayl.identity.repository.TelegramLinkTokenRepository;
 import ru.vladmikhayl.identity.repository.UserRepository;
 import ru.vladmikhayl.identity.security.JwtService;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -71,8 +68,7 @@ public class IdentityService {
 
         return new ProfileResponse(
                 user.getLogin(),
-                user.isDailyReminderEnabled(),
-                user.getDailyReminderTime()
+                user.isDailyReminderEnabled()
         );
     }
 

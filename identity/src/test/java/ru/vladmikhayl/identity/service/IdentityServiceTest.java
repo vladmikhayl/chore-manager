@@ -173,7 +173,6 @@ public class IdentityServiceTest {
 
         assertThat(response.getLogin()).isEqualTo("vlad");
         assertThat(response.isDailyReminderEnabled()).isTrue();
-        assertThat(response.getDailyReminderTime()).isEqualTo(LocalTime.of(9, 0));
     }
 
     @Test

@@ -189,8 +189,7 @@ public class IdentityIntegrationTest {
                         .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.login").value(login))
-                .andExpect(jsonPath("$.dailyReminderEnabled").value(false))
-                .andExpect(jsonPath("$.dailyReminderTime").value("08:00:00"));
+                .andExpect(jsonPath("$.dailyReminderEnabled").value(false));
 
         NotificationSettingsRequest updateRequest = NotificationSettingsRequest.builder()
                 .dailyReminderEnabled(true)
@@ -207,8 +206,7 @@ public class IdentityIntegrationTest {
                         .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.login").value(login))
-                .andExpect(jsonPath("$.dailyReminderEnabled").value(true))
-                .andExpect(jsonPath("$.dailyReminderTime").value("10:00:00"));
+                .andExpect(jsonPath("$.dailyReminderEnabled").value(true));
     }
 
     @Test
