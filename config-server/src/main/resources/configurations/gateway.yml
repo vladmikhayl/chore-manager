@@ -41,6 +41,13 @@ spring:
           predicates:
             - Path=/api/v1/lists/**,/api/v1/invites/**,/api/v1/tasks/**
 
+        - id: task-management-internal
+          uri: lb://TASK-MANAGEMENT
+          predicates:
+            - Path=/api/v1/internal/tasks-for-users
+          filters:
+            - InternalToken
+
         - id: task-management-openapi
           uri: lb://TASK-MANAGEMENT
           predicates:
