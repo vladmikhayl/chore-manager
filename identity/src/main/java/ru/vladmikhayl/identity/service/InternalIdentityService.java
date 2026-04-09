@@ -26,6 +26,7 @@ public class InternalIdentityService {
     private final UserRepository userRepository;
     private final HashService hashService;
     private final Clock clock;
+    private final IdentityEventPublisher eventPublisher;
 
     @Transactional
     public String getLoginById(UUID userId) {
@@ -65,5 +66,10 @@ public class InternalIdentityService {
 
         telegramLinkToken.setUsedAt(now);
         telegramLinkTokenRepository.save(telegramLinkToken);
+
+        eventPublisher.publishTelegramLinked(
+                telegramLinkToken.getUserId(),
+                request.getChatId()
+        );
     }
 }

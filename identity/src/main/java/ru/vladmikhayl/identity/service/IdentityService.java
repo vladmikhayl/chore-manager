@@ -34,6 +34,7 @@ public class IdentityService {
     private final JwtService jwtService;
     private final HashService hashService;
     private final Clock clock;
+    private final IdentityEventPublisher eventPublisher;
 
     public void register(RegisterRequest registerRequest) {
         String login = registerRequest.getLogin();
@@ -133,5 +134,7 @@ public class IdentityService {
         }
 
         userTelegramAccountRepository.deleteById(userId);
+
+        eventPublisher.publishTelegramUnlinked(userId);
     }
 }
