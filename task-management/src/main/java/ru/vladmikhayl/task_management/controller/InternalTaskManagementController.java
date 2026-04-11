@@ -3,10 +3,7 @@ package ru.vladmikhayl.task_management.controller;
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import ru.vladmikhayl.task_management.dto.request.TasksForUsersRequest;
 import ru.vladmikhayl.task_management.dto.response.UserTasksForReminderResponse;
 import ru.vladmikhayl.task_management.service.InternalTaskManagementService;
@@ -20,7 +17,7 @@ import java.util.List;
 public class InternalTaskManagementController {
     private final InternalTaskManagementService internalTaskManagementService;
 
-    @PostMapping("/tasks-for-users")
+    @GetMapping("/tasks-for-users")
     public ResponseEntity<List<UserTasksForReminderResponse>> getTasksForUsers(
             @RequestBody TasksForUsersRequest request
     ) {
