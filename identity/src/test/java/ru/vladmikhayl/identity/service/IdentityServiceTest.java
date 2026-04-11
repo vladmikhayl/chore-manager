@@ -58,6 +58,9 @@ public class IdentityServiceTest {
     @Mock
     private Clock clock;
 
+    @Mock
+    private IdentityEventPublisher eventPublisher;
+
     @Test
     void register_success_savesUserWithDefaults() {
         RegisterRequest req = RegisterRequest.builder()
@@ -208,6 +211,7 @@ public class IdentityServiceTest {
                 .hasMessage("Пользователь не найден");
 
         verify(userRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -234,6 +238,7 @@ public class IdentityServiceTest {
 
         assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(10, 0));
         assertThat(saved.isDailyReminderEnabled()).isTrue();
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -260,6 +265,8 @@ public class IdentityServiceTest {
 
         assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(15, 0));
         assertThat(saved.isDailyReminderEnabled()).isTrue();
+
+        verify(eventPublisher).publishReminderSettingsChanged(userId, true);
     }
 
     @Test
@@ -287,6 +294,8 @@ public class IdentityServiceTest {
 
         assertThat(saved.isDailyReminderEnabled()).isTrue();
         assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(7, 0));
+
+        verify(eventPublisher).publishReminderSettingsChanged(userId, true);
     }
 
     @Test
@@ -311,6 +320,7 @@ public class IdentityServiceTest {
 
         assertThat(saved.isDailyReminderEnabled()).isTrue();
         assertThat(saved.getDailyReminderTime()).isEqualTo(LocalTime.of(8, 0));
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -410,6 +420,7 @@ public class IdentityServiceTest {
                 .hasMessage("Пользователь не найден");
 
         verify(userTelegramAccountRepository, never()).deleteById(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -421,5 +432,6 @@ public class IdentityServiceTest {
         identityService.deleteTelegramLink(userId);
 
         verify(userTelegramAccountRepository).deleteById(userId);
+        verify(eventPublisher).publishTelegramUnlinked(userId);
     }
 }

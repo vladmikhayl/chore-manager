@@ -45,6 +45,9 @@ public class InternalIdentityServiceTest {
     @Mock
     private Clock clock;
 
+    @Mock
+    private IdentityEventPublisher eventPublisher;
+
     @InjectMocks
     private InternalIdentityService internalIdentityService;
 
@@ -92,6 +95,7 @@ public class InternalIdentityServiceTest {
 
         verify(userTelegramAccountRepository, never()).save(any());
         verify(telegramLinkTokenRepository, never()).save(any(TelegramLinkToken.class));
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -119,6 +123,7 @@ public class InternalIdentityServiceTest {
 
         verify(userTelegramAccountRepository, never()).save(any());
         verify(telegramLinkTokenRepository, never()).save(any(TelegramLinkToken.class));
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -149,6 +154,7 @@ public class InternalIdentityServiceTest {
 
         verify(userTelegramAccountRepository, never()).save(any());
         verify(telegramLinkTokenRepository, never()).save(any(TelegramLinkToken.class));
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -181,6 +187,7 @@ public class InternalIdentityServiceTest {
 
         verify(userTelegramAccountRepository, never()).save(any());
         verify(telegramLinkTokenRepository, never()).save(any(TelegramLinkToken.class));
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -224,5 +231,7 @@ public class InternalIdentityServiceTest {
 
         TelegramLinkToken savedToken = tokenCaptor.getValue();
         assertThat(savedToken.getUsedAt()).isEqualTo(now);
+
+        verify(eventPublisher).publishTelegramLinked(userId, 123456789L);
     }
 }
