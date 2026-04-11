@@ -17,7 +17,7 @@ import java.util.List;
 public class InternalTaskManagementController {
     private final InternalTaskManagementService internalTaskManagementService;
 
-    @GetMapping("/tasks-for-users")
+    @PostMapping("/tasks-for-users")
     public ResponseEntity<List<UserTasksForReminderResponse>> getTasksForUsers(
             @RequestBody TasksForUsersRequest request
     ) {
