@@ -3,6 +3,7 @@ package ru.vladmikhayl.identity.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import ru.vladmikhayl.identity.dto.kafka.ReminderSettingsChangedEvent;
 import ru.vladmikhayl.identity.dto.kafka.TelegramLinkedEvent;
 import ru.vladmikhayl.identity.dto.kafka.TelegramUnlinkedEvent;
 
@@ -15,6 +16,7 @@ public class IdentityEventPublisher {
 
     private static final String TELEGRAM_LINKED_TOPIC = "telegram-linked";
     private static final String TELEGRAM_UNLINKED_TOPIC = "telegram-unlinked";
+    private static final String REMINDER_SETTINGS_CHANGED_TOPIC = "reminder-settings-changed";
 
     public void publishTelegramLinked(UUID userId, Long chatId) {
         var event = TelegramLinkedEvent.builder()
@@ -31,5 +33,14 @@ public class IdentityEventPublisher {
                 .build();
 
         kafkaTemplate.send(TELEGRAM_UNLINKED_TOPIC, userId.toString(), event);
+    }
+
+    public void publishReminderSettingsChanged(UUID userId, boolean dailyReminderEnabled) {
+        var event = ReminderSettingsChangedEvent.builder()
+                .userId(userId)
+                .dailyReminderEnabled(dailyReminderEnabled)
+                .build();
+
+        kafkaTemplate.send(REMINDER_SETTINGS_CHANGED_TOPIC, userId.toString(), event);
     }
 }

@@ -92,6 +92,10 @@ public class IdentityService {
         }
 
         userRepository.save(user);
+
+        if (dailyReminderEnabled != null) {
+            eventPublisher.publishReminderSettingsChanged(userId, dailyReminderEnabled);
+        }
     }
 
     public String createTelegramLinkToken(UUID userId) {
