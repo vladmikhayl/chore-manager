@@ -6,7 +6,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.vladmikhayl.task_management.dto.request.TasksForUsersRequest;
-import ru.vladmikhayl.task_management.dto.response.TaskResponse;
+import ru.vladmikhayl.task_management.dto.response.TaskResponseShort;
 import ru.vladmikhayl.task_management.dto.response.UserTasksForReminderResponse;
 import ru.vladmikhayl.task_management.service.InternalTaskManagementService;
 import ru.vladmikhayl.task_management.service.TaskManagementService;
@@ -36,10 +36,19 @@ public class InternalTaskManagementController {
     }
 
     @GetMapping("/tasks")
-    public ResponseEntity<List<TaskResponse>> getTasksForDay(
+    public ResponseEntity<List<TaskResponseShort>> getTasksForDay(
             @RequestHeader("X-User-Id") UUID userId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        return ResponseEntity.ok(taskManagementService.getTasksForDay(userId, date));
+        List<TaskResponseShort> response = taskManagementService.getTasksForDay(userId, date)
+                .stream()
+                .map(task -> TaskResponseShort.builder()
+                        .id(task.getId())
+                        .listTitle(task.getListTitle())
+                        .title(task.getTitle())
+                        .build())
+                .toList();
+
+        return ResponseEntity.ok(response);
     }
 }
