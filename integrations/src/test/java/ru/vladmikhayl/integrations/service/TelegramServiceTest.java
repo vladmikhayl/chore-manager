@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class IntegrationsServiceTest {
+public class TelegramServiceTest {
     private static final Long CHAT_ID = 123456789L;
 
     @Mock
