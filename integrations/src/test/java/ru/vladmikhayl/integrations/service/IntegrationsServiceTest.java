@@ -12,7 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import ru.vladmikhayl.integrations.dto.request.TelegramLinkRequest;
 import ru.vladmikhayl.integrations.dto.request.TelegramSendMessageRequest;
 import ru.vladmikhayl.integrations.dto.request.TelegramWebhookRequest;
-import ru.vladmikhayl.integrations.feign.IdentityClient;
+import ru.vladmikhayl.integrations.feign.FeignClient;
 import ru.vladmikhayl.integrations.feign.TelegramBotClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,26 +23,26 @@ public class IntegrationsServiceTest {
     private static final Long CHAT_ID = 123456789L;
 
     @Mock
-    private IdentityClient identityClient;
+    private FeignClient feignClient;
 
     @Mock
     private TelegramBotClient telegramBotClient;
 
     @InjectMocks
-    private IntegrationsService integrationsService;
+    private TelegramService telegramService;
 
     @Test
     void handleWebhook_requestIsNull_doesNothing() {
-        integrationsService.handleWebhook(null);
-        verifyNoInteractions(identityClient, telegramBotClient);
+        telegramService.handleWebhook(null);
+        verifyNoInteractions(feignClient, telegramBotClient);
     }
 
     @Test
     void handleWebhook_messageIsNull_doesNothing() {
         TelegramWebhookRequest request = new TelegramWebhookRequest();
         request.setMessage(null);
-        integrationsService.handleWebhook(request);
-        verifyNoInteractions(identityClient, telegramBotClient);
+        telegramService.handleWebhook(request);
+        verifyNoInteractions(feignClient, telegramBotClient);
     }
 
     @Test
@@ -52,8 +52,8 @@ public class IntegrationsServiceTest {
         message.setChat(null);
         TelegramWebhookRequest request = new TelegramWebhookRequest();
         request.setMessage(message);
-        integrationsService.handleWebhook(request);
-        verifyNoInteractions(identityClient, telegramBotClient);
+        telegramService.handleWebhook(request);
+        verifyNoInteractions(feignClient, telegramBotClient);
     }
 
     @Test
@@ -65,8 +65,8 @@ public class IntegrationsServiceTest {
         message.setChat(chat);
         TelegramWebhookRequest request = new TelegramWebhookRequest();
         request.setMessage(message);
-        integrationsService.handleWebhook(request);
-        verifyNoInteractions(identityClient, telegramBotClient);
+        telegramService.handleWebhook(request);
+        verifyNoInteractions(feignClient, telegramBotClient);
     }
 
     @ParameterizedTest
@@ -75,9 +75,9 @@ public class IntegrationsServiceTest {
     void handleWebhook_invalidText_sendsUniversalMessage(String text) {
         TelegramWebhookRequest request = buildRequest(text, CHAT_ID);
 
-        integrationsService.handleWebhook(request);
+        telegramService.handleWebhook(request);
 
-        verifyNoInteractions(identityClient);
+        verifyNoInteractions(feignClient);
 
         ArgumentCaptor<TelegramSendMessageRequest> captor =
                 ArgumentCaptor.forClass(TelegramSendMessageRequest.class);
@@ -96,9 +96,9 @@ public class IntegrationsServiceTest {
     void handleWebhook_validStartCommand_linksTelegramAndSendsSuccessMessage(String text) {
         TelegramWebhookRequest request = buildRequest(text, CHAT_ID);
 
-        integrationsService.handleWebhook(request);
+        telegramService.handleWebhook(request);
 
-        verify(identityClient).linkTelegramAccount(new TelegramLinkRequest("abc123", CHAT_ID));
+        verify(feignClient).linkTelegramAccount(new TelegramLinkRequest("abc123", CHAT_ID));
 
         ArgumentCaptor<TelegramSendMessageRequest> captor =
                 ArgumentCaptor.forClass(TelegramSendMessageRequest.class);
@@ -114,10 +114,10 @@ public class IntegrationsServiceTest {
         TelegramWebhookRequest request = buildRequest("/start abc123", CHAT_ID);
 
         doThrow(new RuntimeException("boom"))
-                .when(identityClient)
+                .when(feignClient)
                 .linkTelegramAccount(new TelegramLinkRequest("abc123", CHAT_ID));
 
-        integrationsService.handleWebhook(request);
+        telegramService.handleWebhook(request);
 
         ArgumentCaptor<TelegramSendMessageRequest> captor =
                 ArgumentCaptor.forClass(TelegramSendMessageRequest.class);

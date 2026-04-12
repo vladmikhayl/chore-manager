@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 import ru.vladmikhayl.integrations.dto.request.TelegramLinkRequest;
 import ru.vladmikhayl.integrations.dto.request.TelegramSendMessageRequest;
 import ru.vladmikhayl.integrations.dto.request.TelegramWebhookRequest;
-import ru.vladmikhayl.integrations.feign.IdentityClient;
+import ru.vladmikhayl.integrations.feign.FeignClient;
 import ru.vladmikhayl.integrations.feign.TelegramBotClient;
 
 import java.util.regex.Matcher;
@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class IntegrationsService {
+public class TelegramService {
     private static final Pattern START_COMMAND_PATTERN =
             Pattern.compile("^/start(?:@\\w+)?(?:\\s+(?<token>.+))?$");
 
@@ -31,7 +31,7 @@ public class IntegrationsService {
     private static final String DEFAULT_LINK_ERROR_MESSAGE =
             "Что-то пошло не так. Пожалуйста, попробуйте ещё раз";
 
-    private final IdentityClient identityClient;
+    private final FeignClient feignClient;
     private final TelegramBotClient telegramBotClient;
 
     public void handleWebhook(TelegramWebhookRequest request) {
@@ -63,7 +63,7 @@ public class IntegrationsService {
         TelegramLinkRequest linkRequest = new TelegramLinkRequest(token, chatId);
 
         try {
-            identityClient.linkTelegramAccount(linkRequest);
+            feignClient.linkTelegramAccount(linkRequest);
             sendMessageSafely(chatId, SUCCESS_MESSAGE);
         } catch (Exception e) {
             sendMessageSafely(chatId, DEFAULT_LINK_ERROR_MESSAGE);

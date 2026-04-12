@@ -11,8 +11,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import ru.vladmikhayl.integrations.dto.request.AliceRequest;
 import ru.vladmikhayl.integrations.dto.request.TelegramWebhookRequest;
-import ru.vladmikhayl.integrations.service.IntegrationsService;
+import ru.vladmikhayl.integrations.dto.response.AliceResponse;
+import ru.vladmikhayl.integrations.service.AliceService;
+import ru.vladmikhayl.integrations.service.TelegramService;
 
 @RestController
 @RequestMapping("/api/v1/integrations")
@@ -23,14 +26,23 @@ import ru.vladmikhayl.integrations.service.IntegrationsService;
         @ApiResponse(responseCode = "400", description = "Передано некорректное тело запроса", content = @Content)
 })
 public class IntegrationsController {
-    private final IntegrationsService integrationsService;
+    private final TelegramService telegramService;
+    private final AliceService aliceService;
 
     @PostMapping("/telegram/webhook")
     @Operation(summary = "Обработать вебхук от Telegram")
     public ResponseEntity<Void> handleWebhook(
             @RequestBody TelegramWebhookRequest request
     ) {
-        integrationsService.handleWebhook(request);
+        telegramService.handleWebhook(request);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/alice/webhook")
+    @Operation(summary = "Обработать вебхук от Алисы")
+    public ResponseEntity<AliceResponse> handleWebhook(
+            @RequestBody AliceRequest request
+    ) {
+        return ResponseEntity.ok(aliceService.handleWebhook(request));
     }
 }

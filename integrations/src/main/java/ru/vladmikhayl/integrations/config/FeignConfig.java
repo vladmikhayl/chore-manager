@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class IdentityFeignConfig {
+public class FeignConfig {
     @Bean
     public RequestInterceptor internalTokenInterceptor(
             @Value("${security.internal.token}") String token
