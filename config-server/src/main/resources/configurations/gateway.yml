@@ -58,7 +58,7 @@ spring:
         - id: integrations
           uri: lb://INTEGRATIONS
           predicates:
-            - Path=/api/v1/integrations/**
+            - Path=/api/v1/integrations/**,/api/v1/alice/**
 
         - id: integrations-openapi
           uri: lb://INTEGRATIONS

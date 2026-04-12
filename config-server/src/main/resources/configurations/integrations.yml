@@ -16,3 +16,8 @@ telegram:
 security:
   internal:
     token: "super-secret-internal-token"
+
+alice:
+  oauth:
+    client-id: chore-manager-alice
+    client-secret: super-secret-value
