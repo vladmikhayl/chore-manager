@@ -25,7 +25,6 @@ public class AliceRequest {
     @Data
     public static class Session {
         private String session_id;
-        private Boolean new_session;
         private String message_id;
         private String user_id;
     }

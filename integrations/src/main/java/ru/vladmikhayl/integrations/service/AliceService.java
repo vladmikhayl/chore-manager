@@ -10,6 +10,7 @@ import ru.vladmikhayl.integrations.feign.FeignClient;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -21,22 +22,28 @@ public class AliceService {
     private final FeignClient feignClient;
 
     public AliceResponse handleWebhook(AliceRequest request) {
-        String command = extractCommand(request);
-
-        String text;
-
-        if (isTodayCommand(command)) {
-            text = buildTasksMessage(LocalDate.now());
-        } else if (isTomorrowCommand(command)) {
-            text = buildTasksMessage(LocalDate.now().plusDays(1));
-        } else {
-            text = "К сожалению, распознать команду не удалось. Пока я умею только рассказывать о задачах на сегодня и завтра.";
-        }
-
         return new AliceResponse(
-                new AliceResponse.Response(text, false),
+                null,
+                Map.of(),
                 request != null && request.getVersion() != null ? request.getVersion() : "1.0"
         );
+
+//        String command = extractCommand(request);
+//
+//        String text;
+//
+//        if (isTodayCommand(command)) {
+//            text = buildTasksMessage(LocalDate.now());
+//        } else if (isTomorrowCommand(command)) {
+//            text = buildTasksMessage(LocalDate.now().plusDays(1));
+//        } else {
+//            text = "К сожалению, распознать команду не удалось. Пока я умею только рассказывать о задачах на сегодня и завтра.";
+//        }
+//
+//        return new AliceResponse(
+//                new AliceResponse.Response(text, false),
+//                request != null && request.getVersion() != null ? request.getVersion() : "1.0"
+//        );
     }
 
     private String extractCommand(AliceRequest request) {
