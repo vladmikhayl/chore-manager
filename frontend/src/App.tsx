@@ -8,6 +8,7 @@ import { ListsPage } from "./pages/ListsPage";
 import { ListDetailsPage } from "./pages/ListDetailsPage";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { AliceLinkPage } from "./pages/AliceLinkPage";
 
 export default function App() {
   return (
@@ -32,6 +33,8 @@ export default function App() {
             </PublicRoute>
           }
         />
+
+        <Route path="/alice/link" element={<AliceLinkPage />} />
 
         <Route
           path="/tasks"
