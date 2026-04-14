@@ -23,8 +23,7 @@ export function AliceLinkPage() {
   const redirectUri = searchParams.get("redirect_uri") ?? "";
   const state = searchParams.get("state") ?? undefined;
 
-  const returnUrl = `${location.pathname}${location.search}`;
-  const loginUrl = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+  const loginUrl = `/login`;
 
   async function handleConfirm() {
     if (!redirectUri) {
