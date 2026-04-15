@@ -5,7 +5,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
+import ru.vladmikhayl.integrations.dto.request.AliceConfirmAuthorizeRequest;
+import ru.vladmikhayl.integrations.dto.response.AliceConfirmAuthorizeResponse;
 import ru.vladmikhayl.integrations.service.AliceOAuthService;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/alice/oauth")
@@ -35,5 +39,23 @@ public class AliceOAuthController {
         return ResponseEntity.status(302)
                 .header(HttpHeaders.LOCATION, location)
                 .build();
+    }
+
+    @PostMapping("/authorize/confirm")
+    public ResponseEntity<AliceConfirmAuthorizeResponse> confirmAuthorize(
+            @RequestHeader("X-User-Id") UUID userId,
+            @RequestBody AliceConfirmAuthorizeRequest request
+    ) {
+        aliceOAuthService.validateConfirmRequest(request.getRedirectUri());
+
+        String code = aliceOAuthService.createAuthorizationCode(userId);
+
+        String redirectUrl = aliceOAuthService.buildRedirectUrl(
+                request.getRedirectUri(),
+                code,
+                request.getState()
+        );
+
+        return ResponseEntity.ok(new AliceConfirmAuthorizeResponse(redirectUrl));
     }
 }

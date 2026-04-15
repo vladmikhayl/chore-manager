@@ -38,12 +38,12 @@ export function AliceLinkPage() {
       setStatus("loading");
       setErrorMessage(null);
 
-      await confirmAliceLink({
+      const redirectUrl = await confirmAliceLink({
         redirectUri,
         state,
       });
 
-      setStatus("success");
+      window.location.href = redirectUrl;
     } catch (error) {
       const parsedError = parseApiError(error);
       setErrorMessage(parsedError.message);
