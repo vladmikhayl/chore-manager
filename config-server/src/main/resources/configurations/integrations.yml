@@ -19,7 +19,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
 
 telegram:
   bot-api-url: https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}
