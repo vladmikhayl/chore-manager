@@ -10,6 +10,7 @@ import ru.vladmikhayl.reminders.entity.ReminderUserSettings;
 import ru.vladmikhayl.reminders.feign.TaskManagementClient;
 import ru.vladmikhayl.reminders.repository.ReminderUserSettingsRepository;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,7 @@ public class ReminderDispatchService {
     private final ReminderUserSettingsRepository reminderUserSettingsRepository;
     private final TaskManagementClient taskManagementClient;
     private final TelegramClient telegramClient;
+    private final Clock clock;
 
     public void sendDailyReminders() {
         List<ReminderUserSettings> users =
@@ -37,7 +39,7 @@ public class ReminderDispatchService {
                 .map(ReminderUserSettings::getUserId)
                 .toList();
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(clock);
 
         List<UserTasksForReminderResponse> tasksByUser = taskManagementClient.getTasksForUsers(
                 TasksForUsersRequest.builder()
