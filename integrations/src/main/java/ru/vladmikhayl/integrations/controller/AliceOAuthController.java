@@ -1,5 +1,6 @@
 package ru.vladmikhayl.integrations.controller;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -16,6 +17,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/alice/oauth")
 @RequiredArgsConstructor
+@Hidden
 public class AliceOAuthController {
     private final AliceOAuthService aliceOAuthService;
 
