@@ -2,11 +2,13 @@ package ru.vladmikhayl.integrations.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 import ru.vladmikhayl.integrations.dto.request.AliceConfirmAuthorizeRequest;
 import ru.vladmikhayl.integrations.dto.response.AliceConfirmAuthorizeResponse;
+import ru.vladmikhayl.integrations.dto.response.AliceTokenResponse;
 import ru.vladmikhayl.integrations.service.AliceOAuthService;
 
 import java.util.UUID;
@@ -57,5 +59,21 @@ public class AliceOAuthController {
         );
 
         return ResponseEntity.ok(new AliceConfirmAuthorizeResponse(redirectUrl));
+    }
+
+    @PostMapping(
+            value = "/token",
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE
+    )
+    public ResponseEntity<AliceTokenResponse> token(
+            @RequestParam("grant_type") String grantType,
+            @RequestParam("code") String code,
+            @RequestParam("client_id") String clientId,
+            @RequestParam("client_secret") String clientSecret,
+            @RequestParam("redirect_uri") String redirectUri
+    ) {
+        return ResponseEntity.ok(
+                aliceOAuthService.exchangeCodeToAccessToken(grantType, code, clientId, clientSecret, redirectUri)
+        );
     }
 }
