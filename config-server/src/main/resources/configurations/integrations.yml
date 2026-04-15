@@ -20,10 +20,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
 
 telegram:
   bot-api-url: https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}
