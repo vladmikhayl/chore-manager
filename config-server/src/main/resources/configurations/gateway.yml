@@ -6,7 +6,7 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: ${EUREKA_DEFAULT_ZONE}
   instance:
     prefer-ip-address: true
 
@@ -86,7 +86,7 @@ logging:
 
 security:
   jwt:
-    secret: "n82dHJjidj3j8DH83dhkjmaO83NOUh_d772GHDS1D3"
-    ttl: 3600 # seconds
+    secret: ${JWT_SECRET}
+    ttl: ${JWT_TTL_SECONDS}
   internal:
-    token: "super-secret-internal-token"
+    token: ${INTERNAL_TOKEN}

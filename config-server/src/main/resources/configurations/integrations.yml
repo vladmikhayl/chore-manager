@@ -6,15 +6,15 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: ${EUREKA_DEFAULT_ZONE}
   instance:
     prefer-ip-address: true
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:15432/integrations_db
-    username: postgres
-    password: postgres
+    url: ${INTEGRATIONS_DB_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -30,9 +30,9 @@ telegram:
 
 security:
   internal:
-    token: "super-secret-internal-token"
+    token: ${INTERNAL_TOKEN}
 
 alice:
   oauth:
-    client-id: chore-manager-alice
-    client-secret: super-secret-value
+    client-id: ${ALICE_CLIENT_ID}
+    client-secret: ${ALICE_CLIENT_SECRET}

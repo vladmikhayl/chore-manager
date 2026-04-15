@@ -6,15 +6,15 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: ${EUREKA_DEFAULT_ZONE}
   instance:
     prefer-ip-address: true
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:15432/task_management_db
-    username: postgres
-    password: postgres
+    url: ${TASK_MANAGEMENT_DB_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -27,4 +27,4 @@ spring:
 
 security:
   internal:
-    token: "super-secret-internal-token"
+    token: ${INTERNAL_TOKEN}

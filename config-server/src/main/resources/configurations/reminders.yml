@@ -6,15 +6,15 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: ${EUREKA_DEFAULT_ZONE}
   instance:
     prefer-ip-address: true
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:15432/reminders_db
-    username: postgres
-    password: postgres
+    url: ${REMINDERS_DB_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -26,7 +26,7 @@ spring:
         format_sql: true
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     consumer:
       group-id: reminders
       auto-offset-reset: earliest
@@ -35,7 +35,7 @@ spring:
 
 security:
   internal:
-    token: "super-secret-internal-token"
+    token: ${INTERNAL_TOKEN}
 
 telegram:
   bot-token: ${TELEGRAM_BOT_TOKEN}

@@ -14,5 +14,5 @@ target/
 .DS_Store
 Thumbs.db
 
-# Env/local configs (если будут)
+# Env/local configs
 .env
