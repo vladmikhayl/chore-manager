@@ -3,13 +3,19 @@ services:
     image: postgres:16
     container_name: postgres_db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "15432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.9.0
@@ -21,7 +27,8 @@ services:
       test: [ "CMD", "echo", "ruok", "|", "nc", "localhost", "2181" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
   kafka:
     image: confluentinc/cp-kafka:7.9.0
@@ -39,6 +46,12 @@ services:
     depends_on:
       zookeeper:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1" ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -50,7 +63,97 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
+
+  config-server:
+    build:
+      context: ./config-server
+    container_name: config_server
+    env_file:
+      - .env
+    ports:
+      - "8888:8888"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8888/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+
+  discovery:
+    build:
+      context: ./discovery
+    container_name: discovery
+    env_file:
+      - .env
+    ports:
+      - "8761:8761"
+    depends_on:
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8761/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+
+  gateway:
+    build:
+      context: ./gateway
+    container_name: gateway
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      discovery:
+        condition: service_healthy
+
+  identity:
+    build:
+      context: ./identity
+    container_name: identity
+    env_file:
+      - .env
+    depends_on:
+      discovery:
+        condition: service_healthy
+
+  task-management:
+    build:
+      context: ./task-management
+    container_name: task_management
+    env_file:
+      - .env
+    depends_on:
+      discovery:
+        condition: service_healthy
+
+  reminders:
+    build:
+      context: ./reminders
+    container_name: reminders
+    env_file:
+      - .env
+    depends_on:
+      discovery:
+        condition: service_healthy
+
+  integrations:
+    build:
+      context: ./integrations
+    container_name: integrations
+    env_file:
+      - .env
+    depends_on:
+      discovery:
+        condition: service_healthy
 
 volumes:
   pgdata:
