@@ -87,10 +87,11 @@ public class TelegramService {
     }
 
     private void sendMessageSafely(Long chatId, String text) {
-        try {
-            telegramBotClient.sendMessage(new TelegramSendMessageRequest(chatId, text));
-        } catch (Exception e) {
-            log.error("Failed to send telegram message to chatId={}", chatId, e);
-        }
+//        try {
+//            telegramBotClient.sendMessage(new TelegramSendMessageRequest(chatId, text));
+//        } catch (Exception e) {
+//            log.error("Failed to send telegram message to chatId={}", chatId, e);
+//        }
+        log.info("Отправлено сообщение {}", text);
     }
 }
