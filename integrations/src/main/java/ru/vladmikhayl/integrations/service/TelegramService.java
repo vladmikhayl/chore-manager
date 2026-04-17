@@ -35,6 +35,8 @@ public class TelegramService {
     private final TelegramBotClient telegramBotClient;
 
     public void handleWebhook(TelegramWebhookRequest request) {
+        log.info("Вызван метод handleWebhook в TelegramService");
+
         if (request == null || request.getMessage() == null) {
             return;
         }
