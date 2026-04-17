@@ -35,7 +35,7 @@ public class TelegramService {
     private final TelegramBotClient telegramBotClient;
 
     public void handleWebhook(TelegramWebhookRequest request) {
-        log.info("Вызван метод handleWebhook в TelegramService");
+        log.info("Telegram webhook received");
 
         if (request == null || request.getMessage() == null) {
             return;
@@ -94,6 +94,6 @@ public class TelegramService {
 //        } catch (Exception e) {
 //            log.error("Failed to send telegram message to chatId={}", chatId, e);
 //        }
-        log.info("Отправлено сообщение {}", text);
+        log.info("Send message {}", text);
     }
 }
