@@ -32,7 +32,7 @@ public class AliceOAuthController {
             @RequestParam("redirect_uri") String redirectUri,
             @RequestParam(value = "state", required = false) String state
     ) {
-        aliceOAuthService.validateAuthorizeRequest(responseType, clientId, redirectUri);
+//        aliceOAuthService.validateAuthorizeRequest(responseType, clientId, redirectUri);
 
         UriComponentsBuilder builder = UriComponentsBuilder
                 .fromUriString(aliceLinkPageUrl)
