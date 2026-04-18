@@ -29,6 +29,7 @@ security:
     token: ${INTERNAL_TOKEN}
 
 alice:
+  link-page-url: ${ALICE_LINK_PAGE_URL}
   oauth:
     client-id: ${ALICE_CLIENT_ID}
     client-secret: ${ALICE_CLIENT_SECRET}

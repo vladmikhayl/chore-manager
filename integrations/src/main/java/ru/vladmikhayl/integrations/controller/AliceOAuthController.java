@@ -2,6 +2,7 @@ package ru.vladmikhayl.integrations.controller;
 
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,9 @@ import java.util.UUID;
 public class AliceOAuthController {
     private final AliceOAuthService aliceOAuthService;
 
+    @Value("${alice.link-page-url}")
+    private String aliceLinkPageUrl;
+
     @GetMapping("/authorize")
     public ResponseEntity<Void> authorize(
             @RequestParam("response_type") String responseType,
@@ -31,7 +35,7 @@ public class AliceOAuthController {
         aliceOAuthService.validateAuthorizeRequest(responseType, clientId, redirectUri);
 
         UriComponentsBuilder builder = UriComponentsBuilder
-                .fromUriString("http://localhost:5173/alice/link")
+                .fromUriString(aliceLinkPageUrl)
                 .queryParam("redirect_uri", redirectUri);
 
         if (state != null && !state.isBlank()) {
