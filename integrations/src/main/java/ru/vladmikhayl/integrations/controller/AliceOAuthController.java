@@ -27,20 +27,20 @@ public class AliceOAuthController {
 
     @GetMapping("/authorize")
     public ResponseEntity<Void> authorize(
-            @RequestParam("response_type") String responseType,
-            @RequestParam("client_id") String clientId,
-            @RequestParam("redirect_uri") String redirectUri,
+            @RequestParam(value = "response_type", required = false) String responseType,
+            @RequestParam(value = "client_id", required = false) String clientId,
+            @RequestParam(value = "redirect_uri", required = false) String redirectUri,
             @RequestParam(value = "state", required = false) String state
     ) {
 //        aliceOAuthService.validateAuthorizeRequest(responseType, clientId, redirectUri);
 
         UriComponentsBuilder builder = UriComponentsBuilder
                 .fromUriString(aliceLinkPageUrl)
-                .queryParam("redirect_uri", redirectUri);
+                .queryParam("redirect_uri", "https://social.yandex.net/broker/redirect");
 
-        if (state != null && !state.isBlank()) {
-            builder.queryParam("state", state);
-        }
+//        if (state != null && !state.isBlank()) {
+//            builder.queryParam("state", state);
+//        }
 
         String location = builder.build(true).toUriString();
 
