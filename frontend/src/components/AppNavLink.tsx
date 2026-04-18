@@ -12,7 +12,7 @@ export function AppNavLink({ to, children }: AppNavLinkProps) {
       to={to}
       className={({ isActive }) =>
         [
-          "rounded-xl px-4 py-2 text-sm font-medium transition",
+          "block rounded-xl px-4 py-2 text-center text-sm font-medium transition md:inline-block",
           isActive
             ? "bg-indigo-100 text-indigo-700"
             : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",

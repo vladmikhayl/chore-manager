@@ -40,7 +40,7 @@ export function TodoListCard({
           <button
             type="button"
             onClick={onOpen}
-            className="cursor-pointer rounded-xl bg-indigo-600 px-8 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            className="w-full cursor-pointer rounded-xl bg-indigo-600 px-8 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 sm:w-auto"
           >
             Открыть список
           </button>

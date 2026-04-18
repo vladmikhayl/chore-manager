@@ -438,12 +438,12 @@ export function ListDetailsPage() {
                 </span>
               </p>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                 {membersCount > 0 && (
                   <button
                     type="button"
                     onClick={() => setIsMembersExpanded((prev) => !prev)}
-                    className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 sm:w-auto"
                   >
                     <span className="inline-flex items-center gap-2">
                       <span>

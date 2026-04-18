@@ -155,12 +155,12 @@ export function ListTaskCard({
               </button>
             </div>
 
-            <div className="flex flex-col gap-2 self-start sm:self-auto lg:w-52 lg:justify-center">
+            <div className="flex w-full flex-col gap-2 self-start sm:self-auto lg:w-52 lg:justify-center">
               <button
                 type="button"
                 onClick={() => onEditAssignmentRule(task)}
                 disabled={isDeleting || isEditingRule}
-                className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isEditingRule ? "Сохраняем..." : "Редактировать правило"}
               </button>
@@ -169,7 +169,7 @@ export function ListTaskCard({
                 type="button"
                 onClick={() => onDelete(task.id)}
                 disabled={isDeleting || isEditingRule}
-                className="cursor-pointer rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full cursor-pointer rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isDeleting ? "Удаляем..." : "Удалить задачу"}
               </button>

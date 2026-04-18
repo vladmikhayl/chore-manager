@@ -242,7 +242,7 @@ export function ProfilePage() {
                       type="button"
                       onClick={() => void handleConnectTelegram()}
                       disabled={isTelegramConnecting}
-                      className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-7 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="w-full cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-7 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                     >
                       {isTelegramConnecting
                         ? "Открываем Telegram..."
@@ -310,10 +310,7 @@ export function ProfilePage() {
                 <div>
                   <button
                     type="button"
-                    onClick={() =>
-                      window.open("#", "_blank", "noopener,noreferrer")
-                    }
-                    className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-7 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                    className="w-full cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-7 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-auto"
                   >
                     Перейти в навык
                   </button>

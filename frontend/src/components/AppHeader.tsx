@@ -14,31 +14,43 @@ export function AppHeader() {
 
   return (
     <header className="border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-6">
-          <div className="shrink-0">
-            <Link
-              to="/tasks"
-              className="text-lg font-bold tracking-tight text-slate-900 transition hover:text-indigo-600"
-            >
-              Chore Manager
-            </Link>
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-8">
+            <div className="flex items-center justify-between gap-3 md:block">
+              <Link
+                to="/tasks"
+                className="shrink-0 text-lg font-bold tracking-tight text-slate-900 transition hover:text-indigo-600"
+              >
+                Chore Manager
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="cursor-pointer rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 md:hidden"
+              >
+                Выйти
+              </button>
+            </div>
+
+            <nav className="grid grid-cols-1 gap-2 sm:grid-cols-3 md:flex md:items-center md:gap-2">
+              <AppNavLink to="/tasks">Задачи</AppNavLink>
+              <AppNavLink to="/lists">Списки дел</AppNavLink>
+              <AppNavLink to="/profile">Профиль</AppNavLink>
+            </nav>
           </div>
 
-          <nav className="flex items-center gap-2">
-            <AppNavLink to="/tasks">Задачи</AppNavLink>
-            <AppNavLink to="/lists">Списки дел</AppNavLink>
-            <AppNavLink to="/profile">Профиль</AppNavLink>
-          </nav>
+          <div className="hidden md:block">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="cursor-pointer rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            >
+              Выйти
+            </button>
+          </div>
         </div>
-
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="cursor-pointer rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-        >
-          Выйти
-        </button>
       </div>
     </header>
   );
