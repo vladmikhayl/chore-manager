@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,6 +26,7 @@ import ru.vladmikhayl.integrations.service.TelegramService;
         @ApiResponse(responseCode = "200", description = "Вебхук успешно обработан"),
         @ApiResponse(responseCode = "400", description = "Передано некорректное тело запроса", content = @Content)
 })
+@Slf4j
 public class IntegrationsController {
     private final TelegramService telegramService;
     private final AliceService aliceService;
@@ -43,6 +45,8 @@ public class IntegrationsController {
     public ResponseEntity<AliceResponse> handleWebhook(
             @RequestBody AliceRequest request
     ) {
+        log.info("Called /alice/webhook");
+
         return ResponseEntity.ok(aliceService.handleWebhook(request));
     }
 }

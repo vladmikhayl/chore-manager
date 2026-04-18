@@ -34,7 +34,7 @@ public class AliceOAuthController {
             @RequestParam(value = "redirect_uri", required = false) String redirectUri,
             @RequestParam(value = "state", required = false) String state
     ) {
-        log.info("Called authorize");
+        log.info("Called /authorize");
 
 //        aliceOAuthService.validateAuthorizeRequest(responseType, clientId, redirectUri);
 
