@@ -289,14 +289,35 @@ export function ProfilePage() {
             </section>
 
             <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-              <div className="flex flex-col gap-2">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Яндекс Алиса
-                </h2>
-                <p className="text-sm text-slate-600">
-                  Здесь позже появится переход в навык Алисы и привязка
-                  аккаунта.
-                </p>
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-3">
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Яндекс Алиса
+                  </h2>
+                  <p className="text-sm text-slate-600">
+                    Откройте навык в Яндекс Алисе, чтобы голосом получать
+                    информацию о своих задачах.
+                  </p>
+                  <p className="text-sm text-slate-600">
+                    Через навык можно, например, узнать{" "}
+                    <span className="font-semibold text-slate-900">
+                      свои задачи на сегодня или на завтра
+                    </span>
+                    .
+                  </p>
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      window.open("#", "_blank", "noopener,noreferrer")
+                    }
+                    className="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-7 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                  >
+                    Перейти в навык
+                  </button>
+                </div>
               </div>
             </section>
           </>
