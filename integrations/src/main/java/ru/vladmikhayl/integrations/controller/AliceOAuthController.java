@@ -2,6 +2,7 @@ package ru.vladmikhayl.integrations.controller;
 
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -19,6 +20,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/alice/oauth")
 @RequiredArgsConstructor
 @Hidden
+@Slf4j
 public class AliceOAuthController {
     private final AliceOAuthService aliceOAuthService;
 
@@ -32,6 +34,8 @@ public class AliceOAuthController {
             @RequestParam(value = "redirect_uri", required = false) String redirectUri,
             @RequestParam(value = "state", required = false) String state
     ) {
+        log.info("Called authorize");
+
 //        aliceOAuthService.validateAuthorizeRequest(responseType, clientId, redirectUri);
 
         UriComponentsBuilder builder = UriComponentsBuilder
