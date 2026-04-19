@@ -5,11 +5,14 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.web.client.RestTemplate;
 import ru.vladmikhayl.e2e_tests.helper.AuthHelper;
+import ru.vladmikhayl.e2e_tests.helper.ListHelper;
 
 import java.time.LocalDate;
 import java.util.UUID;
 
 public abstract class BaseE2ETest {
+    protected static final String DEFAULT_PASSWORD = "12345";
+    protected static final String DEFAULT_LIST_TITLE = "Список домашних дел";
     protected static final String TODAY_DATE_STR = LocalDate.now().toString();
 
     private static final Dotenv dotenv = Dotenv.configure()
@@ -25,6 +28,8 @@ public abstract class BaseE2ETest {
     protected final ObjectMapper objectMapper = new ObjectMapper();
 
     protected final AuthHelper authHelper = new AuthHelper(restTemplate, gatewayUrl, objectMapper);
+    protected final ListHelper listHelper = new ListHelper(restTemplate, gatewayUrl, objectMapper);
+
 
     {
         objectMapper.registerModule(new JavaTimeModule());

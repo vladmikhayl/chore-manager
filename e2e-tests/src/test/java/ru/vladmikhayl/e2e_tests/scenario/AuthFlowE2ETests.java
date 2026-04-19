@@ -10,8 +10,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class AuthFlowE2ETests extends BaseE2ETest {
-    protected static final String DEFAULT_PASSWORD = "12345";
-
     @Test
     void testRegisterLoginAndAccessProtectedEndpoint() {
         // Создаём пользователя
