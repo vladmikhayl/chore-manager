@@ -28,8 +28,6 @@ public class AliceService {
     private final Clock clock;
 
     public AliceResponse handleWebhook(AliceRequest request, String authorizationHeader) {
-        log.info("Alice webhook received");
-
         String version = request != null && request.getVersion() != null
                 ? request.getVersion()
                 : "1.0";
