@@ -8,10 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import ru.vladmikhayl.integrations.dto.request.AliceRequest;
 import ru.vladmikhayl.integrations.dto.request.TelegramWebhookRequest;
 import ru.vladmikhayl.integrations.dto.response.AliceResponse;
@@ -36,6 +33,7 @@ public class IntegrationsController {
     public ResponseEntity<Void> handleWebhook(
             @RequestBody TelegramWebhookRequest request
     ) {
+        log.info("Called /telegram/webhook");
         telegramService.handleWebhook(request);
         return ResponseEntity.ok().build();
     }
@@ -43,10 +41,10 @@ public class IntegrationsController {
     @PostMapping("/alice/webhook")
     @Operation(summary = "Обработать вебхук от Алисы")
     public ResponseEntity<AliceResponse> handleWebhook(
-            @RequestBody AliceRequest request
+            @RequestBody AliceRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader
     ) {
-        log.info("Called /alice/webhook");
-
-        return ResponseEntity.ok(aliceService.handleWebhook(request));
+        log.info("Called /alice/webhook, authorizationHeader present: {}", authorizationHeader != null);
+        return ResponseEntity.ok(aliceService.handleWebhook(request, authorizationHeader));
     }
 }

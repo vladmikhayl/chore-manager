@@ -8,13 +8,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import ru.vladmikhayl.integrations.dto.request.AliceRequest;
 import ru.vladmikhayl.integrations.dto.response.AliceResponse;
 import ru.vladmikhayl.integrations.dto.response.TaskResponseShort;
+import ru.vladmikhayl.integrations.entity.AliceOAuthAccessToken;
 import ru.vladmikhayl.integrations.feign.FeignClient;
+import ru.vladmikhayl.integrations.repository.AliceOAuthAccessTokenRepository;
 
-import java.time.LocalDate;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -22,80 +28,195 @@ public class AliceServiceTest {
     @Mock
     private FeignClient feignClient;
 
+    @Mock
+    private HashService hashService;
+
+    @Mock
+    private AliceOAuthAccessTokenRepository accessTokenRepository;
+
+    @Mock
+    private Clock clock;
+
     @InjectMocks
     private AliceService aliceService;
 
+    private final UUID userId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
     @Test
-    void handleWebhook_requestIsNull_returnsFallback() {
-        AliceResponse response = aliceService.handleWebhook(null);
+    void handleWebhook_noToken_returnsStartAccountLinking() {
+        AliceRequest request = buildRequest("какие у меня задачи на сегодня");
 
-        assertThat(response.getResponse().getText())
-                .startsWith("К сожалению, распознать команду не удалось");
+        AliceResponse response = aliceService.handleWebhook(request, null);
 
+        assertThat(response.getResponse()).isNull();
+        assertThat(response.getStart_account_linking()).isEmpty();
+        assertThat(response.getVersion()).isEqualTo("1.0");
+
+        verifyNoInteractions(hashService, accessTokenRepository, feignClient);
+    }
+
+    @Test
+    void handleWebhook_tokenNotFound_returnsStartAccountLinking() {
+        AliceRequest request = buildRequest("какие у меня задачи на сегодня");
+
+        when(hashService.sha256("header-token")).thenReturn("header-hash");
+        when(accessTokenRepository.findByTokenHash("header-hash")).thenReturn(Optional.empty());
+
+        AliceResponse response = aliceService.handleWebhook(request, "Bearer header-token");
+
+        assertThat(response.getResponse()).isNull();
+        assertThat(response.getStart_account_linking()).isEmpty();
+
+        verify(hashService).sha256("header-token");
+        verify(accessTokenRepository).findByTokenHash("header-hash");
         verifyNoInteractions(feignClient);
     }
 
     @Test
-    void handleWebhook_unknownCommand_returnsFallback() {
-        AliceRequest request = buildRequest("привет");
+    void handleWebhook_expiredToken_returnsStartAccountLinking() {
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
+        when(clock.instant()).thenReturn(Instant.parse("2026-04-21T09:00:00Z"));
 
-        AliceResponse response = aliceService.handleWebhook(request);
+        AliceRequest request = buildRequest("какие у меня задачи на сегодня");
 
-        assertThat(response.getResponse().getText())
-                .startsWith("К сожалению, распознать команду не удалось");
+        AliceOAuthAccessToken expiredToken = AliceOAuthAccessToken.builder()
+                .userId(userId)
+                .tokenHash("expired-hash")
+                .expiresAt(LocalDateTime.of(2026, 4, 21, 11, 59, 59))
+                .build();
 
+        when(hashService.sha256("expired-token")).thenReturn("expired-hash");
+        when(accessTokenRepository.findByTokenHash("expired-hash")).thenReturn(Optional.of(expiredToken));
+
+        AliceResponse response = aliceService.handleWebhook(request, "Bearer expired-token");
+
+        assertThat(response.getResponse()).isNull();
+        assertThat(response.getStart_account_linking()).isEmpty();
+
+        verify(hashService).sha256("expired-token");
+        verify(accessTokenRepository).findByTokenHash("expired-hash");
         verifyNoInteractions(feignClient);
     }
 
     @Test
-    void handleWebhook_todayCommand_returnsTasks() {
-        when(feignClient.getTasksForDay(any(), any()))
+    void handleWebhook_validBearerToken_todayCommand_returnsTasks() {
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
+        when(clock.instant()).thenReturn(Instant.parse("2026-04-21T09:00:00Z"));
+
+        AliceRequest request = buildRequest("какие у меня задачи на сегодня");
+
+        AliceOAuthAccessToken validToken = AliceOAuthAccessToken.builder()
+                .userId(userId)
+                .tokenHash("valid-hash")
+                .expiresAt(LocalDateTime.of(2026, 4, 21, 12, 0, 1))
+                .build();
+
+        when(hashService.sha256("valid-token")).thenReturn("valid-hash");
+        when(accessTokenRepository.findByTokenHash("valid-hash")).thenReturn(Optional.of(validToken));
+        when(feignClient.getTasksForDay(userId, "2026-04-21"))
                 .thenReturn(List.of(
                         TaskResponseShort.builder().title("Вынести мусор").build(),
                         TaskResponseShort.builder().title("Купить продукты").build()
                 ));
 
-        AliceRequest request = buildRequest("какие у меня задачи на сегодня");
+        AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
 
-        AliceResponse response = aliceService.handleWebhook(request);
-
+        assertThat(response.getStart_account_linking()).isNull();
+        assertThat(response.getResponse()).isNotNull();
+        assertThat(response.getResponse().isEnd_session()).isFalse();
         assertThat(response.getResponse().getText())
-                .contains("На сегодня у вас 2 задачи")
-                .contains("Вынести мусор")
-                .contains("Купить продукты");
+                .isEqualTo("На сегодня у вас 2 задачи: Вынести мусор, Купить продукты.");
 
-        verify(feignClient).getTasksForDay(any(), eq(LocalDate.now().toString()));
+        verify(hashService).sha256("valid-token");
+        verify(accessTokenRepository).findByTokenHash("valid-hash");
+        verify(feignClient).getTasksForDay(userId, "2026-04-21");
     }
 
     @Test
-    void handleWebhook_tomorrowCommand_returnsTasks() {
-        when(feignClient.getTasksForDay(any(), any()))
+    void handleWebhook_validOAuthToken_tomorrowCommand_returnsTasks() {
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
+        when(clock.instant()).thenReturn(Instant.parse("2026-04-21T09:00:00Z"));
+
+        AliceRequest request = buildRequest("какие задачи на завтра");
+
+        AliceOAuthAccessToken validToken = AliceOAuthAccessToken.builder()
+                .userId(userId)
+                .tokenHash("oauth-hash")
+                .expiresAt(LocalDateTime.of(2026, 4, 21, 12, 0, 1))
+                .build();
+
+        when(hashService.sha256("oauth-token")).thenReturn("oauth-hash");
+        when(accessTokenRepository.findByTokenHash("oauth-hash")).thenReturn(Optional.of(validToken));
+        when(feignClient.getTasksForDay(userId, "2026-04-22"))
                 .thenReturn(List.of(
                         TaskResponseShort.builder().title("Помыть посуду").build()
                 ));
 
-        AliceRequest request = buildRequest("какие задачи на завтра");
+        AliceResponse response = aliceService.handleWebhook(request, "OAuth oauth-token");
 
-        AliceResponse response = aliceService.handleWebhook(request);
-
+        assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
-                .contains("На завтра у вас 1 задача")
-                .contains("Помыть посуду");
+                .isEqualTo("На завтра у вас 1 задача: Помыть посуду.");
 
-        verify(feignClient).getTasksForDay(any(), eq(LocalDate.now().plusDays(1).toString()));
+        verify(hashService).sha256("oauth-token");
+        verify(accessTokenRepository).findByTokenHash("oauth-hash");
+        verify(feignClient).getTasksForDay(userId, "2026-04-22");
     }
 
     @Test
-    void handleWebhook_noTasks_returnsEmptyMessage() {
-        when(feignClient.getTasksForDay(any(), any()))
-                .thenReturn(List.of());
+    void handleWebhook_validTokenInBody_returnsTasks() {
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
+        when(clock.instant()).thenReturn(Instant.parse("2026-04-21T09:00:00Z"));
 
-        AliceRequest request = buildRequest("задачи на сегодня");
+        AliceRequest request = buildRequestWithBodyToken("какие у меня задачи на сегодня", "body-token");
 
-        AliceResponse response = aliceService.handleWebhook(request);
+        AliceOAuthAccessToken validToken = AliceOAuthAccessToken.builder()
+                .userId(userId)
+                .tokenHash("body-hash")
+                .expiresAt(LocalDateTime.of(2026, 4, 21, 12, 0, 1))
+                .build();
 
+        when(hashService.sha256("body-token")).thenReturn("body-hash");
+        when(accessTokenRepository.findByTokenHash("body-hash")).thenReturn(Optional.of(validToken));
+        when(feignClient.getTasksForDay(userId, "2026-04-21"))
+                .thenReturn(List.of(TaskResponseShort.builder().title("Протереть пыль").build()));
+
+        AliceResponse response = aliceService.handleWebhook(request, null);
+
+        assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
-                .isEqualTo("На сегодня у вас нет задач.");
+                .isEqualTo("На сегодня у вас 1 задача: Протереть пыль.");
+
+        verify(hashService).sha256("body-token");
+        verify(accessTokenRepository).findByTokenHash("body-hash");
+        verify(feignClient).getTasksForDay(userId, "2026-04-21");
+    }
+
+    @Test
+    void handleWebhook_validToken_unknownCommand_returnsFallback() {
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
+        when(clock.instant()).thenReturn(Instant.parse("2026-04-21T09:00:00Z"));
+
+        AliceRequest request = buildRequest("привет");
+
+        AliceOAuthAccessToken validToken = AliceOAuthAccessToken.builder()
+                .userId(userId)
+                .tokenHash("valid-hash")
+                .expiresAt(LocalDateTime.of(2026, 4, 21, 12, 0, 1))
+                .build();
+
+        when(hashService.sha256("valid-token")).thenReturn("valid-hash");
+        when(accessTokenRepository.findByTokenHash("valid-hash")).thenReturn(Optional.of(validToken));
+
+        AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
+
+        assertThat(response.getResponse()).isNotNull();
+        assertThat(response.getResponse().getText())
+                .startsWith("К сожалению, распознать команду не удалось");
+
+        verify(hashService).sha256("valid-token");
+        verify(accessTokenRepository).findByTokenHash("valid-hash");
+        verifyNoInteractions(feignClient);
     }
 
     private AliceRequest buildRequest(String text) {
@@ -105,6 +226,25 @@ public class AliceServiceTest {
 
         AliceRequest request = new AliceRequest();
         request.setRequest(req);
+        request.setVersion("1.0");
+
+        return request;
+    }
+
+    private AliceRequest buildRequestWithBodyToken(String text, String accessToken) {
+        AliceRequest.Request req = new AliceRequest.Request();
+        req.setCommand(text);
+        req.setOriginal_utterance(text);
+
+        AliceRequest.User user = new AliceRequest.User();
+        user.setAccess_token(accessToken);
+
+        AliceRequest.Session session = new AliceRequest.Session();
+        session.setUser(user);
+
+        AliceRequest request = new AliceRequest();
+        request.setRequest(req);
+        request.setSession(session);
         request.setVersion("1.0");
 
         return request;

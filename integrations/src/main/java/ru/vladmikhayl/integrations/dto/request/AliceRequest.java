@@ -27,5 +27,11 @@ public class AliceRequest {
         private String session_id;
         private String message_id;
         private String user_id;
+        private User user;
+    }
+
+    @Data
+    public static class User {
+        private String access_token;
     }
 }

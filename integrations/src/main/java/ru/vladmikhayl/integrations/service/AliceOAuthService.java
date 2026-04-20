@@ -27,27 +27,6 @@ public class AliceOAuthService {
     private final HashService hashService;
     private final Clock clock;
 
-    public void validateAuthorizeRequest(String responseType, String clientId, String redirectUri) {
-
-        if (responseType == null || !responseType.equals("code")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "response_type должен быть code");
-        }
-
-        if (clientId == null || !clientId.equals(properties.getClientId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Некорректный client_id");
-        }
-
-        if (redirectUri == null || redirectUri.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "redirect_uri обязателен");
-        }
-    }
-
-    public void validateConfirmRequest(String redirectUri) {
-        if (redirectUri == null || redirectUri.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "redirectUri обязателен");
-        }
-    }
-
     public String createAuthorizationCode(UUID userId) {
         String rawCode = generateRandomToken();
         String codeHash = hashService.sha256(rawCode);

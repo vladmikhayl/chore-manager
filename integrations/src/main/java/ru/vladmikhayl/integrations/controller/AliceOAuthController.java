@@ -24,27 +24,39 @@ import java.util.UUID;
 public class AliceOAuthController {
     private final AliceOAuthService aliceOAuthService;
 
+    @Value("${alice.oauth.client-id}")
+    private String expectedAliceClientId;
+
     @Value("${alice.link-page-url}")
     private String aliceLinkPageUrl;
 
     @GetMapping("/authorize")
     public ResponseEntity<Void> authorize(
-            @RequestParam(value = "response_type", required = false) String responseType,
-            @RequestParam(value = "client_id", required = false) String clientId,
-            @RequestParam(value = "redirect_uri", required = false) String redirectUri,
+            @RequestParam(value = "response_type") String responseType,
+            @RequestParam(value = "client_id") String clientId,
+            @RequestParam(value = "redirect_uri") String redirectUri,
             @RequestParam(value = "state", required = false) String state
     ) {
-        log.info("Called /authorize");
+        log.info("Called authorization endpoint: client_id={}, response_type={}, redirect_uri={}",
+                clientId, responseType, redirectUri);
 
-//        aliceOAuthService.validateAuthorizeRequest(responseType, clientId, redirectUri);
+        if (!"code".equals(responseType)) {
+            log.warn("Invalid response_type: {}", responseType);
+            return ResponseEntity.badRequest().build();
+        }
+
+        if (!expectedAliceClientId.equals(clientId)) {
+            log.warn("Invalid client_id: {}", clientId);
+            return ResponseEntity.badRequest().build();
+        }
 
         UriComponentsBuilder builder = UriComponentsBuilder
                 .fromUriString(aliceLinkPageUrl)
-                .queryParam("redirect_uri", "https://social.yandex.net/broker/redirect");
+                .queryParam("redirect_uri", redirectUri);
 
-//        if (state != null && !state.isBlank()) {
-//            builder.queryParam("state", state);
-//        }
+        if (state != null && !state.isBlank()) {
+            builder.queryParam("state", state);
+        }
 
         String location = builder.build(true).toUriString();
 
@@ -58,7 +70,12 @@ public class AliceOAuthController {
             @RequestHeader("X-User-Id") UUID userId,
             @RequestBody AliceConfirmAuthorizeRequest request
     ) {
-        aliceOAuthService.validateConfirmRequest(request.getRedirectUri());
+        log.info("Called authorization confirm endpoint");
+
+        if (request.getRedirectUri() == null || request.getRedirectUri().isBlank()) {
+            log.warn("Invalid redirect_uri: {}", request.getRedirectUri());
+            return ResponseEntity.badRequest().build();
+        }
 
         String code = aliceOAuthService.createAuthorizationCode(userId);
 
@@ -82,6 +99,8 @@ public class AliceOAuthController {
             @RequestParam("client_secret") String clientSecret,
             @RequestParam("redirect_uri") String redirectUri
     ) {
+        log.info("Called token endpoint");
+
         return ResponseEntity.ok(
                 aliceOAuthService.exchangeCodeToAccessToken(grantType, code, clientId, clientSecret, redirectUri)
         );
