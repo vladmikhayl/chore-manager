@@ -63,6 +63,8 @@ services:
     container_name: config_server
     env_file:
       - .env
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m"
     ports:
       - "8888:8888"
     depends_on:
@@ -84,6 +86,8 @@ services:
     container_name: discovery
     env_file:
       - .env
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m"
     ports:
       - "8761:8761"
     depends_on:
@@ -103,6 +107,8 @@ services:
     container_name: gateway
     env_file:
       - .env
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
     ports:
       - "8080:8080"
     depends_on:
@@ -116,6 +122,8 @@ services:
     container_name: identity
     env_file:
       - .env
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
     depends_on:
       discovery:
         condition: service_healthy
@@ -127,6 +135,8 @@ services:
     container_name: task_management
     env_file:
       - .env
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
     depends_on:
       discovery:
         condition: service_healthy
@@ -138,6 +148,8 @@ services:
     container_name: reminders
     env_file:
       - .env
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
     depends_on:
       discovery:
         condition: service_healthy
@@ -149,6 +161,8 @@ services:
     container_name: integrations
     env_file:
       - .env
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m"
     depends_on:
       discovery:
         condition: service_healthy
