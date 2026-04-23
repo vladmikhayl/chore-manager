@@ -125,19 +125,19 @@ export function ListTaskCard({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0 flex-1">
-              <h3 className="break-words text-lg font-semibold text-slate-900">
+              <h3 className="break-words [overflow-wrap:anywhere] text-lg font-semibold text-slate-900">
                 {task.title}
               </h3>
 
-              <div className="mt-3 grid gap-2 text-sm text-slate-700">
-                <p>
+              <div className="mt-3 grid min-w-0 gap-2 text-sm text-slate-700">
+                <p className="break-words [overflow-wrap:anywhere]">
                   <span className="font-medium text-slate-900">
                     Повторение:
                   </span>{" "}
                   {formatRecurrence(task)}
                 </p>
 
-                <p>
+                <p className="break-words [overflow-wrap:anywhere]">
                   <span className="font-medium text-slate-900">
                     Назначение:
                   </span>{" "}
@@ -155,7 +155,7 @@ export function ListTaskCard({
               </button>
             </div>
 
-            <div className="flex w-full flex-col gap-2 self-start sm:self-auto lg:w-52 lg:justify-center">
+            <div className="flex w-full shrink-0 flex-col gap-2 self-start sm:self-auto lg:w-52 lg:justify-center">
               <button
                 type="button"
                 onClick={() => onEditAssignmentRule(task)}

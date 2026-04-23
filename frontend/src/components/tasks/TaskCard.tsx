@@ -25,9 +25,9 @@ export function TaskCard({
       ].join(" ")}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
+            <span className="max-w-full break-words rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700 [overflow-wrap:anywhere]">
               {listTitle}
             </span>
 
@@ -45,7 +45,7 @@ export function TaskCard({
 
           <h3
             className={[
-              "mt-3 break-words text-lg font-semibold",
+              "mt-3 break-words [overflow-wrap:anywhere] text-lg font-semibold",
               completed ? "text-slate-700 line-through" : "text-slate-900",
             ].join(" ")}
           >

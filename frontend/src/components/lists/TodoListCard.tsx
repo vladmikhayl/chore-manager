@@ -14,7 +14,7 @@ export function TodoListCard({
   return (
     <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-slate-300 hover:bg-slate-100">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-medium text-slate-700">
               Участников: {membersCount}
@@ -31,7 +31,7 @@ export function TodoListCard({
             )}
           </div>
 
-          <h3 className="mt-3 break-words text-xl font-semibold text-slate-900">
+          <h3 className="mt-3 max-w-full break-words text-xl font-semibold text-slate-900 [overflow-wrap:anywhere]">
             {title}
           </h3>
         </div>
