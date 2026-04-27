@@ -406,8 +406,8 @@ export function ListDetailsPage() {
 
         <PageSection>
           <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-2xl font-bold leading-none text-slate-900">
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <h2 className="min-w-0 break-all text-2xl font-bold leading-tight text-slate-900">
                 {listDetails.title}
               </h2>
 
@@ -543,7 +543,7 @@ export function ListDetailsPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid min-w-0 max-w-full gap-3">
                 {tasks.map((task) => (
                   <ListTaskCard
                     key={task.id}

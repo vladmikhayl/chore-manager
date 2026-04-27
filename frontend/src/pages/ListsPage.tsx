@@ -143,7 +143,7 @@ export function ListsPage() {
                 </div>
               )}
 
-              <div className="grid gap-4">
+              <div className="grid min-w-0 max-w-full gap-4">
                 {lists.map((list) => (
                   <TodoListCard
                     key={list.id}

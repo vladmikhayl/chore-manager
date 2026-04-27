@@ -116,16 +116,16 @@ export function ListTaskCard({
       <article
         id={`task-${task.id}`}
         className={[
-          "rounded-2xl border bg-slate-50 p-4 transition-all duration-500",
+          "min-w-0 max-w-full rounded-2xl border bg-slate-50 p-4 transition-all duration-500",
           isHighlighted
             ? "border-indigo-400 bg-indigo-50 ring-4 ring-indigo-200 shadow-md"
             : "border-slate-200 bg-slate-50 hover:border-slate-300",
         ].join(" ")}
       >
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0 flex-1">
-              <h3 className="break-words [overflow-wrap:anywhere] text-lg font-semibold text-slate-900">
+              <h3 className="min-w-0 break-all text-lg font-semibold text-slate-900">
                 {task.title}
               </h3>
 

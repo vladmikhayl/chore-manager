@@ -104,7 +104,7 @@ export function TasksPage() {
       title="Задачи"
       description="Здесь отображаются задачи из всех списков дел, за которые вы отвечаете на выбранную дату."
     >
-      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <section className="min-w-0 max-w-full overflow-hidden rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <div className="flex flex-col gap-5">
           <div className="px-4">
             <TaskDatePicker
@@ -150,7 +150,7 @@ export function TasksPage() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid min-w-0 max-w-full gap-4">
               {tasks.map((task) => (
                 <TaskCard
                   key={task.id}

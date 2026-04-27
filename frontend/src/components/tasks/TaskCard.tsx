@@ -18,16 +18,16 @@ export function TaskCard({
   return (
     <article
       className={[
-        "rounded-2xl border p-5 transition",
+        "min-w-0 max-w-full overflow-hidden rounded-2xl border p-5 transition",
         completed
           ? "border-emerald-200 bg-emerald-50"
           : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100",
       ].join(" ")}
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="max-w-full break-words rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700 [overflow-wrap:anywhere]">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="min-w-0 max-w-full break-all rounded-xl bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
               {listTitle}
             </span>
 
@@ -45,7 +45,7 @@ export function TaskCard({
 
           <h3
             className={[
-              "mt-3 break-words [overflow-wrap:anywhere] text-lg font-semibold",
+              "mt-3 min-w-0 break-all text-lg font-semibold",
               completed ? "text-slate-700 line-through" : "text-slate-900",
             ].join(" ")}
           >
@@ -53,7 +53,7 @@ export function TaskCard({
           </h3>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
           <button
             type="button"
             onClick={onOpenDetails}
