@@ -32,32 +32,70 @@ public class AliceService {
                 ? request.getVersion()
                 : "1.0";
 
-        UUID userId = resolveUserId(request, authorizationHeader);
-
-        if (userId == null) {
-            return new AliceResponse(
-                    null,
-                    Map.of(),
-                    version
-            );
-        }
-
         String command = extractCommand(request);
-        String text;
-
-        if (isTodayCommand(command)) {
-            text = buildTasksMessage(userId, LocalDate.now(clock));
-        } else if (isTomorrowCommand(command)) {
-            text = buildTasksMessage(userId, LocalDate.now(clock).plusDays(1));
-        } else {
-            text = "К сожалению, распознать команду не удалось. Пока я умею только рассказывать о задачах на сегодня и завтра.";
-        }
+        String text = buildReferenceAnswer(command);
 
         return new AliceResponse(
                 new AliceResponse.Response(text, false),
                 null,
                 version
         );
+    }
+
+    private String buildReferenceAnswer(String command) {
+        if (command == null || command.isBlank() || isStartCommand(command)) {
+            return """
+                Привет! Я навык Chore Manager.
+                Спроси, например: что это за приложение, как работает распределение задач или как приходят напоминания.
+                """;
+        }
+
+        if (containsAny(command, "что делает", "о приложении", "что это", "что за приложение", "что умеет", "функции")) {
+            return """
+                Это приложение для совместных бытовых задач.
+                Оно помогает не только вести список дел, но и автоматически распределяет обязанности между участниками.
+                """;
+        }
+
+        if (containsAny(command, "распредел", "как назначаются", "кто выполняет")) {
+            return """
+                Задачи назначаются автоматически.
+                Можно закрепить задачу за человеком, распределять по кругу или задать исполнителей по дням недели.
+                """;
+        }
+
+        if (containsAny(command, "напоминан", "telegram", "телеграм", "уведомлен")) {
+            return """
+                Приложение отправляет напоминания через Телеграм.
+                Пользователь получает список задач на день в 8 утра каждый день.
+                """;
+        }
+
+        if (containsAny(command, "алис", "голос")) {
+            return """
+                Через Алису можно работать с задачами голосом.
+                Например, узнать задачи на сегодня или отметить их выполнение. Пока навык работает в справочном режиме.
+                """;
+        }
+
+        return """
+            Я не совсем понял вопрос.
+            Попробуй спросить: что это за приложение, как работает распределение задач или как приходят напоминания.
+            """;
+    }
+
+    private boolean isStartCommand(String command) {
+        return containsAny(command, "привет", "запусти", "начать", "старт");
+    }
+
+    private boolean containsAny(String command, String... parts) {
+        for (String part : parts) {
+            if (command.contains(part)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private UUID resolveUserId(AliceRequest request, String authorizationHeader) {
