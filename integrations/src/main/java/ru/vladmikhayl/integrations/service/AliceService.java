@@ -43,10 +43,10 @@ public class AliceService {
     }
 
     private String buildReferenceAnswer(String command) {
-        if (command == null || command.isBlank() || isStartCommand(command)) {
+        if (command == null || command.isBlank() || containsAny(command, "привет", "запусти", "начать", "старт", "помощ", "что ты умеешь")) {
             return """
-                Привет! Я навык Chore Manager.
-                Спроси, например: что это за приложение, как работает распределение задач или как приходят напоминания.
+                Я навык Chore Manager, и я помогаю разобраться в этом приложении.
+                Через меня ты можешь спрашивать, например: что это за приложение, как работает распределение задач или как приходят напоминания.
                 """;
         }
 
@@ -82,10 +82,6 @@ public class AliceService {
             Я не совсем поняла вопрос.
             Попробуй спросить: что это за приложение, как работает распределение задач или как приходят напоминания.
             """;
-    }
-
-    private boolean isStartCommand(String command) {
-        return containsAny(command, "привет", "запусти", "начать", "старт");
     }
 
     private boolean containsAny(String command, String... parts) {
