@@ -125,7 +125,7 @@ public class AliceServiceTest {
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().isEnd_session()).isFalse();
         assertThat(response.getResponse().getText())
-                .isEqualTo("На сегодня у вас 2 задачи: Вынести мусор, Купить продукты.");
+                .isEqualTo("На сегодня у вас 2 задачи: вынести мусор, купить продукты.");
 
         verify(hashService).sha256("valid-token");
         verify(accessTokenRepository).findByTokenHash("valid-hash");
@@ -156,7 +156,7 @@ public class AliceServiceTest {
 
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
-                .isEqualTo("На завтра у вас 1 задача: Помыть посуду.");
+                .isEqualTo("На завтра у вас 1 задача: помыть посуду.");
 
         verify(hashService).sha256("oauth-token");
         verify(accessTokenRepository).findByTokenHash("oauth-hash");
@@ -185,7 +185,7 @@ public class AliceServiceTest {
 
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
-                .isEqualTo("На сегодня у вас 1 задача: Протереть пыль.");
+                .isEqualTo("На сегодня у вас 1 задача: протереть пыль.");
 
         verify(hashService).sha256("body-token");
         verify(accessTokenRepository).findByTokenHash("body-hash");
@@ -193,30 +193,80 @@ public class AliceServiceTest {
     }
 
     @Test
-    void handleWebhook_validToken_unknownCommand_returnsFallback() {
-        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
-        when(clock.instant()).thenReturn(Instant.parse("2026-04-21T09:00:00Z"));
-
+    void handleWebhook_startCommand_returnsReferenceHelpWithoutAuthorization() {
         AliceRequest request = buildRequest("привет");
-
-        AliceOAuthAccessToken validToken = AliceOAuthAccessToken.builder()
-                .userId(userId)
-                .tokenHash("valid-hash")
-                .expiresAt(LocalDateTime.of(2026, 4, 21, 12, 0, 1))
-                .build();
-
-        when(hashService.sha256("valid-token")).thenReturn("valid-hash");
-        when(accessTokenRepository.findByTokenHash("valid-hash")).thenReturn(Optional.of(validToken));
 
         AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
 
+        assertThat(response.getStart_account_linking()).isNull();
+        assertThat(response.getResponse()).isNotNull();
+        assertThat(response.getResponse().isEnd_session()).isFalse();
+        assertThat(response.getResponse().getText())
+                .contains("Я навык приложения Chore Manager")
+                .contains("что это за приложение")
+                .contains("как приходят напоминания");
+
+        verifyNoInteractions(hashService, accessTokenRepository, feignClient);
+    }
+
+    @Test
+    void handleWebhook_helpCommand_returnsInstructionWithoutAuthorization() {
+        AliceRequest request = buildRequest("помощь");
+
+        AliceResponse response = aliceService.handleWebhook(request, null);
+
+        assertThat(response.getStart_account_linking()).isNull();
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
-                .startsWith("К сожалению, распознать команду не удалось");
+                .contains("Я навык приложения Chore Manager")
+                .contains("что это за приложение")
+                .contains("как приходят напоминания");
 
-        verify(hashService).sha256("valid-token");
-        verify(accessTokenRepository).findByTokenHash("valid-hash");
-        verifyNoInteractions(feignClient);
+        verifyNoInteractions(hashService, accessTokenRepository, feignClient);
+    }
+
+    @Test
+    void handleWebhook_applicationInfoCommand_returnsApplicationDescription() {
+        AliceRequest request = buildRequest("что это за приложение");
+
+        AliceResponse response = aliceService.handleWebhook(request, null);
+
+        assertThat(response.getStart_account_linking()).isNull();
+        assertThat(response.getResponse()).isNotNull();
+        assertThat(response.getResponse().getText())
+                .contains("приложение для совместных бытовых задач")
+                .contains("автоматически распределяет обязанности");
+
+        verifyNoInteractions(hashService, accessTokenRepository, feignClient);
+    }
+
+    @Test
+    void handleWebhook_distributionCommand_returnsDistributionDescription() {
+        AliceRequest request = buildRequest("как работает распределение задач");
+
+        AliceResponse response = aliceService.handleWebhook(request, null);
+
+        assertThat(response.getStart_account_linking()).isNull();
+        assertThat(response.getResponse()).isNotNull();
+        assertThat(response.getResponse().getText())
+                .contains("Задачи назначаются автоматически")
+                .contains("по кругу")
+                .contains("по дням недели");
+
+        verifyNoInteractions(hashService, accessTokenRepository, feignClient);
+    }
+
+    @Test
+    void handleWebhook_unknownReferenceCommand_returnsReferenceFallback() {
+        AliceRequest request = buildRequest("какой сегодня курс доллара");
+
+        AliceResponse response = aliceService.handleWebhook(request, null);
+
+        assertThat(response.getStart_account_linking()).isNull();
+        assertThat(response.getResponse()).isNotNull();
+        assertThat(response.getResponse().getText()).contains("Я не совсем поняла вопрос");
+
+        verifyNoInteractions(hashService, accessTokenRepository, feignClient);
     }
 
     private AliceRequest buildRequest(String text) {
