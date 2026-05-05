@@ -12,6 +12,8 @@ import { parseApiError } from "../utils/parseApiError";
 import toast from "react-hot-toast";
 
 const TELEGRAM_BOT_USERNAME = "chore_manager_reminders_bot";
+const ALICE_SKILL_URL =
+  "https://dialogs.yandex.ru/store/skills/68d32872-chore-manager";
 
 export function ProfilePage() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
@@ -80,6 +82,10 @@ export function ProfilePage() {
   function handleOpenTelegramBot() {
     const telegramUrl = `https://t.me/${TELEGRAM_BOT_USERNAME}`;
     window.open(telegramUrl, "_blank", "noopener,noreferrer");
+  }
+
+  function handleOpenAliceSkill() {
+    window.open(ALICE_SKILL_URL, "_blank", "noopener,noreferrer");
   }
 
   async function handleToggleReminders() {
@@ -310,6 +316,7 @@ export function ProfilePage() {
                 <div>
                   <button
                     type="button"
+                    onClick={handleOpenAliceSkill}
                     className="w-full cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-7 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-auto"
                   >
                     Перейти в навык
