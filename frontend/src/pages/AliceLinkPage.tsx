@@ -60,8 +60,8 @@ export function AliceLinkPage() {
   }
 
   return (
-    <AppLayout>
-      <div className="flex flex-col gap-6">
+    <AppLayout showHeader={false}>
+      <div className="flex flex-col gap-6 pt-10">
         <PageSection title="Привязка навыка Алисы">
           {!redirectUri || !clientId ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-5 text-sm text-red-700">

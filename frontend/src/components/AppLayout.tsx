@@ -5,14 +5,20 @@ type AppLayoutProps = {
   title?: string;
   description?: string;
   children: ReactNode;
+  showHeader?: boolean;
 };
 
-export function AppLayout({ title, description, children }: AppLayoutProps) {
+export function AppLayout({
+  title,
+  description,
+  children,
+  showHeader = true,
+}: AppLayoutProps) {
   const shouldRenderHero = Boolean(title || description);
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <AppHeader />
+      {showHeader && <AppHeader />}
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid gap-6">
