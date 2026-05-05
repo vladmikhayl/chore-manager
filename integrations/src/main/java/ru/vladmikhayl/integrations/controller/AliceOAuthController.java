@@ -52,7 +52,8 @@ public class AliceOAuthController {
 
         UriComponentsBuilder builder = UriComponentsBuilder
                 .fromUriString(aliceLinkPageUrl)
-                .queryParam("redirect_uri", redirectUri);
+                .queryParam("redirect_uri", redirectUri)
+                .queryParam("client_id", clientId);
 
         if (state != null && !state.isBlank()) {
             builder.queryParam("state", state);
@@ -82,7 +83,8 @@ public class AliceOAuthController {
         String redirectUrl = aliceOAuthService.buildRedirectUrl(
                 request.getRedirectUri(),
                 code,
-                request.getState()
+                request.getState(),
+                request.getClientId()
         );
 
         return ResponseEntity.ok(new AliceConfirmAuthorizeResponse(redirectUrl));

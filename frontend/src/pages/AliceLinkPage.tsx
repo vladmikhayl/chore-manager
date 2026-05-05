@@ -21,6 +21,7 @@ export function AliceLinkPage() {
   );
 
   const redirectUri = searchParams.get("redirect_uri") ?? "";
+  const clientId = searchParams.get("client_id") ?? "";
   const state = searchParams.get("state") ?? undefined;
 
   const loginUrl = `/login`;
@@ -34,12 +35,19 @@ export function AliceLinkPage() {
       return;
     }
 
+    if (!clientId) {
+      setErrorMessage("В ссылке отсутствует обязательный параметр client_id.");
+      setStatus("error");
+      return;
+    }
+
     try {
       setStatus("loading");
       setErrorMessage(null);
 
       const redirectUrl = await confirmAliceLink({
         redirectUri,
+        clientId,
         state,
       });
 
@@ -55,9 +63,10 @@ export function AliceLinkPage() {
     <AppLayout>
       <div className="flex flex-col gap-6">
         <PageSection title="Привязка навыка Алисы">
-          {!redirectUri ? (
+          {!redirectUri || !clientId ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-5 text-sm text-red-700">
-              В ссылке отсутствует обязательный параметр redirect_uri.
+              В ссылке отсутствует обязательный параметр{" "}
+              {!redirectUri ? "redirect_uri" : "client_id"}.
             </div>
           ) : !accessToken ? (
             <div className="flex flex-col gap-4">

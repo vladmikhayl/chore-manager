@@ -43,9 +43,10 @@ public class AliceOAuthService {
         return rawCode;
     }
 
-    public String buildRedirectUrl(String redirectUri, String code, String state) {
+    public String buildRedirectUrl(String redirectUri, String code, String state, String clientId) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(redirectUri)
-                .queryParam("code", code);
+                .queryParam("code", code)
+                .queryParam("client_id", clientId);
 
         if (state != null && !state.isBlank()) {
             builder.queryParam("state", state);

@@ -12,4 +12,5 @@ import lombok.NoArgsConstructor;
 public class AliceConfirmAuthorizeRequest {
     private String redirectUri;
     private String state;
+    private String clientId;
 }
