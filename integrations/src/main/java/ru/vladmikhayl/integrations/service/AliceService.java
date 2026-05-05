@@ -33,10 +33,31 @@ public class AliceService {
                 : "1.0";
 
         String command = extractCommand(request);
-        String text = buildReferenceAnswer(command);
+
+        if (isTodayCommand(command) || isTomorrowCommand(command)) {
+            UUID userId = resolveUserId(request, authorizationHeader);
+
+            if (userId == null) {
+                return new AliceResponse(
+                        null,
+                        Map.of(),
+                        version
+                );
+            }
+
+            LocalDate date = isTodayCommand(command)
+                    ? LocalDate.now(clock)
+                    : LocalDate.now(clock).plusDays(1);
+
+            return new AliceResponse(
+                    new AliceResponse.Response(buildTasksMessage(userId, date), false),
+                    null,
+                    version
+            );
+        }
 
         return new AliceResponse(
-                new AliceResponse.Response(text, false),
+                new AliceResponse.Response(buildReferenceAnswer(command), false),
                 null,
                 version
         );
