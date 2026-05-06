@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, type SyntheticEvent } from "react";
 import toast from "react-hot-toast";
 import { AuthLayout } from "../components/auth/AuthLayout";
@@ -11,6 +11,10 @@ import { setAccessToken } from "../utils/authStorage";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const searchParams = new URLSearchParams(location.search);
+  const redirectPath = searchParams.get("redirect");
 
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +22,18 @@ export function LoginPage() {
   const [loginError, setLoginError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function getSafeRedirectPath(redirectPath: string | null) {
+    if (!redirectPath || !redirectPath.startsWith("/")) {
+      return "/tasks";
+    }
+
+    if (redirectPath.startsWith("//")) {
+      return "/tasks";
+    }
+
+    return redirectPath;
+  }
 
   async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,7 +69,7 @@ export function LoginPage() {
       setAccessToken(response.token);
       toast.success("Вы успешно вошли в аккаунт");
 
-      navigate("/tasks", { replace: true });
+      navigate(getSafeRedirectPath(redirectPath), { replace: true });
     } catch (error) {
       const parsedError = parseApiError(error);
       toast.error(parsedError.message);

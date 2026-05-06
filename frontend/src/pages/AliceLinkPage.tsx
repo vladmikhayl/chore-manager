@@ -24,7 +24,9 @@ export function AliceLinkPage() {
   const clientId = searchParams.get("client_id") ?? "";
   const state = searchParams.get("state") ?? undefined;
 
-  const loginUrl = `/login`;
+  const loginUrl = `/login?redirect=${encodeURIComponent(
+    `${location.pathname}${location.search}`,
+  )}`;
 
   async function handleConfirm() {
     if (!redirectUri) {
@@ -72,7 +74,7 @@ export function AliceLinkPage() {
             <div className="flex flex-col gap-4">
               <p className="leading-10 text-slate-600">
                 Чтобы привязать навык Алисы, сначала войдите в аккаунт. После
-                входа заново запустите авторизацию в навыке Алисы.
+                входа вы автоматически вернётесь на эту страницу.
               </p>
 
               <div>
