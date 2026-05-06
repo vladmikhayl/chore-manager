@@ -125,7 +125,7 @@ public class AliceServiceTest {
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().isEnd_session()).isFalse();
         assertThat(response.getResponse().getText())
-                .isEqualTo("На сегодня у вас 2 задачи: вынести мусор, купить продукты.");
+                .isEqualTo("На сегодня у вас две задачи: вынести мусор, купить продукты.");
 
         verify(hashService).sha256("valid-token");
         verify(accessTokenRepository).findByTokenHash("valid-hash");
@@ -156,7 +156,7 @@ public class AliceServiceTest {
 
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
-                .isEqualTo("На завтра у вас 1 задача: помыть посуду.");
+                .isEqualTo("На завтра у вас одна задача: помыть посуду.");
 
         verify(hashService).sha256("oauth-token");
         verify(accessTokenRepository).findByTokenHash("oauth-hash");
@@ -185,7 +185,7 @@ public class AliceServiceTest {
 
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
-                .isEqualTo("На сегодня у вас 1 задача: протереть пыль.");
+                .isEqualTo("На сегодня у вас одна задача: протереть пыль.");
 
         verify(hashService).sha256("body-token");
         verify(accessTokenRepository).findByTokenHash("body-hash");

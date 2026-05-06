@@ -90,7 +90,7 @@ public class AliceService {
         }
 
         return """
-            Я не совсем поняла вопрос. Попробуйте спросить: какие у меня задачи на сегодня, какие задачи на завтра, отметь задачу выполненной или что это за приложение.
+        Я не совсем поняла вопрос. Попробуйте спросить, какие у меня задачи на сегодня или на завтра, попросите отметить задачу выполненной или спросите, что это за приложение.
         """;
     }
 
@@ -200,7 +200,7 @@ public class AliceService {
             sb.append("На завтра у вас ");
         }
 
-        sb.append(tasks.size()).append(getTaskWord(tasks.size())).append(": ");
+        sb.append(getTaskCountText(tasks.size())).append(": ");
 
         for (int i = 0; i < tasks.size(); i++) {
             TaskResponseShort task = tasks.get(i);
@@ -216,19 +216,12 @@ public class AliceService {
         return sb.toString();
     }
 
-    private String getTaskWord(int count) {
-        int mod100 = count % 100;
-        int mod10 = count % 10;
-
-        if (mod100 >= 11 && mod100 <= 14) {
-            return " задач";
-        }
-        if (mod10 == 1) {
-            return " задача";
-        }
-        if (mod10 >= 2 && mod10 <= 4) {
-            return " задачи";
-        }
-        return " задач";
+    private String getTaskCountText(int count) {
+        return switch (count) {
+            case 1 -> "одна задача";
+            case 2 -> "две задачи";
+            case 3 -> "три задачи";
+            default -> "несколько задач";
+        };
     }
 }
