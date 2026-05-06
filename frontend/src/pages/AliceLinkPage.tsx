@@ -72,7 +72,7 @@ export function AliceLinkPage() {
             </div>
           ) : !accessToken ? (
             <div className="flex flex-col gap-4">
-              <p className="text-slate-600 leading-relaxed">
+              <p className="py-5 text-slate-600">
                 Чтобы привязать навык Алисы, сначала войдите в аккаунт. После
                 входа вы автоматически вернётесь на эту страницу.
               </p>
