@@ -23,15 +23,15 @@ import java.util.regex.Pattern;
 public class AliceService {
     private static final List<Pattern> COMPLETE_TASK_PATTERNS = List.of(
             Pattern.compile(
-                    "^отмет\\p{L}*\\s+выполнен\\p{L}*\\s+задачу\\s+(.+)$",
+                    "^отмет\\p{L}*\\s+выполнен\\p{L}*\\s+(?:задач\\p{L}*\\s+)?(.+)$",
                     Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
             ),
             Pattern.compile(
-                    "^отмет\\p{L}*\\s+задачу\\s+(.+?)\\s+выполнен\\p{L}*$",
+                    "^отмет\\p{L}*\\s+(?:задач\\p{L}*\\s+)?(.+?)\\s+выполнен\\p{L}*$",
                     Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
             ),
             Pattern.compile(
-                    "^задачу\\s+(.+?)\\s+отмет\\p{L}*\\s+выполнен\\p{L}*$",
+                    "^(?:задач\\p{L}*\\s+)?(.+?)\\s+отмет\\p{L}*\\s+выполнен\\p{L}*$",
                     Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
             )
     );
@@ -196,7 +196,7 @@ public class AliceService {
     }
 
     private boolean isCompleteTaskCommand(String command) {
-        return command.contains("отмет") && command.contains("выполнен");
+        return command.contains("отмет");
     }
 
     private boolean isTodayCommand(String command) {
@@ -239,7 +239,7 @@ public class AliceService {
 
         feignClient.completeTask(userId, task.getId(), today.toString());
 
-        return "Готово, задача отмечена выполненной.";
+        return "Готово! Задача отмечена выполненной.";
     }
 
     private Optional<String> extractTaskTitleToComplete(String command) {
