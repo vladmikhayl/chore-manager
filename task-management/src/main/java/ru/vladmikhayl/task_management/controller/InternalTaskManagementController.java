@@ -51,4 +51,14 @@ public class InternalTaskManagementController {
 
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping("/tasks/{taskId}/completions/{date}")
+    public ResponseEntity<Void> completeTask(
+            @RequestHeader("X-User-Id") UUID userId,
+            @PathVariable UUID taskId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        taskManagementService.completeTask(userId, taskId, date);
+        return ResponseEntity.ok().build();
+    }
 }

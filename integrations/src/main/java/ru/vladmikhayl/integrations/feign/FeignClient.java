@@ -18,4 +18,7 @@ public interface FeignClient {
 
     @GetMapping("/api/v1/internal/tasks")
     List<TaskResponseShort> getTasksForDay(@RequestHeader("X-User-Id") UUID userId, @RequestParam String date);
+
+    @PutMapping("/api/v1/internal/tasks/{taskId}/completions/{date}")
+    ResponseEntity<Void> completeTask(@RequestHeader("X-User-Id") UUID userId, @PathVariable UUID taskId, @PathVariable String date);
 }

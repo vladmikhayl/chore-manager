@@ -13,15 +13,60 @@ import ru.vladmikhayl.integrations.repository.AliceOAuthAccessTokenRepository;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AliceService {
+    private static final List<Pattern> COMPLETE_TASK_PATTERNS = List.of(
+            Pattern.compile(
+                    "^отметь\\s+выполненной\\s+задачу\\s+(.+)$",
+                    Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
+            ),
+            Pattern.compile(
+                    "^отметь\\s+задачу\\s+(.+?)\\s+выполненной$",
+                    Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
+            ),
+            Pattern.compile(
+                    "^задачу\\s+(.+?)\\s+отметь\\s+выполненной$",
+                    Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
+            ),
+            Pattern.compile(
+                    "^отметить\\s+выполненной\\s+задачу\\s+(.+)$",
+                    Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
+            ),
+            Pattern.compile(
+                    "^отметить\\s+задачу\\s+(.+?)\\s+выполненной$",
+                    Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
+            )
+    );
+
+    private static final String ACCOUNT_LINKING_SUCCESS_TEXT =
+            "Вы успешно авторизовались. Теперь вы можете спросить, какие у вас задачи на сегодня или на завтра, или попросить отметить задачу выполненной.";
+
+    private static final String START_HELP_TEXT = """
+        Я навык приложения Chore Manager. Через меня вы можете взаимодействовать с сервисом голосом: например, спросить свои задачи на сегодня или на завтра, а также отметить задачу выполненной.
+        А еще я могу рассказать о самом сервисе: например, что это за приложение, как распределяются задачи или как приходят напоминания.
+        """;
+
+    private static final String APP_INFO_TEXT =
+            "Это приложение для совместных бытовых задач. Оно помогает не только вести список дел, но и автоматически распределяет обязанности между участниками.";
+
+    private static final String DISTRIBUTION_INFO_TEXT =
+            "Задачи назначаются автоматически. Можно закрепить задачу за человеком, распределять по кругу или задать исполнителей по дням недели.";
+
+    private static final String REMINDERS_INFO_TEXT =
+            "Приложение отправляет напоминания через Телеграм. Пользователь получает список задач на день в 8 утра каждый день.";
+
+    private static final String UNKNOWN_COMMAND_TEXT =
+            "Я не совсем поняла вопрос. Попробуйте спросить, какие у меня задачи на сегодня или на завтра, попросите отметить задачу выполненной, или спросите, что это за приложение.";
+
+    private static final String COMPLETE_TASK_FORMAT_HINT =
+            "Чтобы отметить задачу выполненной, скажите, например: отметь выполненной задачу \"вынести мусор\".";
+
     private final FeignClient feignClient;
     private final HashService hashService;
     private final AliceOAuthAccessTokenRepository accessTokenRepository;
@@ -36,18 +81,11 @@ public class AliceService {
             UUID userId = resolveUserId(request, authorizationHeader);
 
             if (userId == null) {
-                return new AliceResponse(
-                        null,
-                        Map.of(),
-                        version
-                );
+                return buildStartAccountLinkingResponse(version);
             }
 
             return new AliceResponse(
-                    new AliceResponse.Response(
-                            "Вы успешно авторизовались. Теперь вы можете спросить, какие у вас задачи на сегодня или на завтра, или попросить отметить задачу выполненной.",
-                            false
-                    ),
+                    new AliceResponse.Response(ACCOUNT_LINKING_SUCCESS_TEXT, false),
                     null,
                     version
             );
@@ -55,15 +93,25 @@ public class AliceService {
 
         String command = extractCommand(request);
 
+        if (isCompleteTaskCommand(command)) {
+            UUID userId = resolveUserId(request, authorizationHeader);
+
+            if (userId == null) {
+                return buildStartAccountLinkingResponse(version);
+            }
+
+            return new AliceResponse(
+                    new AliceResponse.Response(completeTask(userId, command), false),
+                    null,
+                    version
+            );
+        }
+
         if (isTodayCommand(command) || isTomorrowCommand(command)) {
             UUID userId = resolveUserId(request, authorizationHeader);
 
             if (userId == null) {
-                return new AliceResponse(
-                        null,
-                        Map.of(),
-                        version
-                );
+                return buildStartAccountLinkingResponse(version);
             }
 
             LocalDate date = isTodayCommand(command)
@@ -82,47 +130,6 @@ public class AliceService {
                 null,
                 version
         );
-    }
-
-    private String buildReferenceAnswer(String command) {
-        if (command == null || command.isBlank() || containsAny(command, "привет", "запусти", "начать", "старт", "помощ", "что ты умеешь")) {
-            return """
-                Я навык приложения Chore Manager. Через меня вы можете взаимодействовать с сервисом голосом: например, спросить свои задачи на сегодня или на завтра, а также отметить задачу выполненной.
-                А еще я могу рассказать о самом сервисе: например, что это за приложение, как распределяются задачи или как приходят напоминания.
-                """;
-        }
-
-        if (containsAny(command, "что делает", "о приложении", "что это", "что за приложение", "что умеет")) {
-            return """
-                Это приложение для совместных бытовых задач. Оно помогает не только вести список дел, но и автоматически распределяет обязанности между участниками.
-                """;
-        }
-
-        if (containsAny(command, "распредел", "как назначаются", "кто выполняет")) {
-            return """
-                Задачи назначаются автоматически. Можно закрепить задачу за человеком, распределять по кругу или задать исполнителей по дням недели.
-                """;
-        }
-
-        if (containsAny(command, "напоминан", "telegram", "телеграм", "уведомлен")) {
-            return """
-                Приложение отправляет напоминания через Телеграм. Пользователь получает список задач на день в 8 утра каждый день.
-                """;
-        }
-
-        return """
-        Я не совсем поняла вопрос. Попробуйте спросить, какие у меня задачи на сегодня или на завтра, попросите отметить задачу выполненной, или спросите, что это за приложение.
-        """;
-    }
-
-    private boolean containsAny(String command, String... parts) {
-        for (String part : parts) {
-            if (command.contains(part)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private UUID resolveUserId(AliceRequest request, String authorizationHeader) {
@@ -196,12 +203,77 @@ public class AliceService {
         return command == null ? "" : command.toLowerCase(Locale.ROOT).trim();
     }
 
+    private boolean isCompleteTaskCommand(String command) {
+        return command.contains("отмет") && command.contains("выполнен");
+    }
+
     private boolean isTodayCommand(String command) {
         return command.contains("сегодня") && command.contains("задач");
     }
 
     private boolean isTomorrowCommand(String command) {
         return command.contains("завтра") && command.contains("задач");
+    }
+
+    private String completeTask(UUID userId, String command) {
+        Optional<String> requestedTaskTitleOptional = extractTaskTitleToComplete(command);
+
+        if (requestedTaskTitleOptional.isEmpty()) {
+            return COMPLETE_TASK_FORMAT_HINT;
+        }
+
+        String requestedTaskTitle = requestedTaskTitleOptional.get();
+
+        LocalDate today = LocalDate.now(clock);
+        List<TaskResponseShort> todayTasks = feignClient.getTasksForDay(userId, today.toString());
+
+        if (todayTasks == null || todayTasks.isEmpty()) {
+            return "На сегодня у вас нет задач.";
+        }
+
+        List<TaskResponseShort> matchedTasks = todayTasks.stream()
+                .filter(task -> isSameTaskTitle(task.getTitle(), requestedTaskTitle))
+                .toList();
+
+        if (matchedTasks.isEmpty()) {
+            return "На сегодня у вас нет задачи \"" + requestedTaskTitle + "\".";
+        }
+
+        if (matchedTasks.size() > 1) {
+            return "На сегодня у вас есть несколько задач с названием \"" + requestedTaskTitle + "\". К сожалению, пока я не могу отмечать задачи в таком случае.";
+        }
+
+        TaskResponseShort task = matchedTasks.getFirst();
+
+        feignClient.completeTask(userId, task.getId(), today.toString());
+
+        return "Готово, задача отмечена выполненной.";
+    }
+
+    private Optional<String> extractTaskTitleToComplete(String command) {
+        for (Pattern pattern : COMPLETE_TASK_PATTERNS) {
+            Matcher matcher = pattern.matcher(command);
+
+            if (matcher.matches()) {
+                String title = matcher.group(1).trim();
+                return title.isBlank()
+                        ? Optional.empty()
+                        : Optional.of(title);
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private boolean isSameTaskTitle(String actualTitle, String requestedTitle) {
+        return normalizeTaskTitle(actualTitle).equals(normalizeTaskTitle(requestedTitle));
+    }
+
+    private String normalizeTaskTitle(String title) {
+        return Objects.requireNonNullElse(title, "")
+                .trim()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", " ");
     }
 
     private String buildTasksMessage(UUID userId, LocalDate date) {
@@ -244,5 +316,43 @@ public class AliceService {
             case 3 -> "три задачи";
             default -> "несколько задач";
         };
+    }
+
+    private String buildReferenceAnswer(String command) {
+        if (command == null || command.isBlank() || containsAny(command, "привет", "запусти", "начать", "старт", "помощ", "что ты умеешь")) {
+            return START_HELP_TEXT;
+        }
+
+        if (containsAny(command, "что делает", "о приложении", "что это", "что за приложение", "что умеет")) {
+            return APP_INFO_TEXT;
+        }
+
+        if (containsAny(command, "распредел", "как назначаются", "кто выполняет")) {
+            return DISTRIBUTION_INFO_TEXT;
+        }
+
+        if (containsAny(command, "напоминан", "telegram", "телеграм", "уведомлен")) {
+            return REMINDERS_INFO_TEXT;
+        }
+
+        return UNKNOWN_COMMAND_TEXT;
+    }
+
+    private AliceResponse buildStartAccountLinkingResponse(String version) {
+        return new AliceResponse(
+                null,
+                Map.of(),
+                version
+        );
+    }
+
+    private boolean containsAny(String command, String... parts) {
+        for (String part : parts) {
+            if (command.contains(part)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
