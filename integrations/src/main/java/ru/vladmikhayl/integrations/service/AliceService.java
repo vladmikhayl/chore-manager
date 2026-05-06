@@ -23,15 +23,15 @@ import java.util.regex.Pattern;
 public class AliceService {
     private static final List<Pattern> COMPLETE_TASK_PATTERNS = List.of(
             Pattern.compile(
-                    "^отмет\\w*\\s+выполнен\\w*\\s+задачу\\s+(.+)$",
+                    "^отмет\\p{L}*\\s+выполнен\\p{L}*\\s+задачу\\s+(.+)$",
                     Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
             ),
             Pattern.compile(
-                    "^отмет\\w*\\s+задачу\\s+(.+?)\\s+выполнен\\w*$",
+                    "^отмет\\p{L}*\\s+задачу\\s+(.+?)\\s+выполнен\\p{L}*$",
                     Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
             ),
             Pattern.compile(
-                    "^задачу\\s+(.+?)\\s+отмет\\w*\\s+выполнен\\w*$",
+                    "^задачу\\s+(.+?)\\s+отмет\\p{L}*\\s+выполнен\\p{L}*$",
                     Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
             )
     );
