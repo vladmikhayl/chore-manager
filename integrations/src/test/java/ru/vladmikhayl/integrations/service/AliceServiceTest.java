@@ -204,7 +204,12 @@ public class AliceServiceTest {
             "отметьте вынести мусор выполненным",
             "задачу вынести мусор отметь выполненной",
             "задача вынести мусор отметить выполненную",
-            "вынести мусор отметьте выполненным"
+            "вынести мусор отметьте выполненным",
+            "отметь задачу выполненной вынести мусор",
+            "отметь задачу вынести мусор",
+            "отметь вынести мусор",
+            "задачу вынести мусор отметь",
+            "вынести мусор отметь"
     })
     void handleWebhook_completeTaskCommand_validPhrases_completesTask(String command) {
         mockValidToken("valid-token", "valid-hash");
@@ -238,14 +243,14 @@ public class AliceServiceTest {
     void handleWebhook_completeTaskCommand_invalidPhrase_returnsFormatHint() {
         mockValidToken("valid-token", "valid-hash");
 
-        AliceRequest request = buildRequest("отметь вынести мусор");
+        AliceRequest request = buildRequest("выполнил вынести мусор");
 
         AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
 
         assertThat(response.getStart_account_linking()).isNull();
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
-                .isEqualTo("Чтобы отметить задачу выполненной, скажите, например: отметь выполненной задачу \"вынести мусор\".");
+                .isEqualTo("Чтобы отметить задачу выполненной, скажите, например: отметь задачу \"вынести мусор\".");
 
         verify(hashService).sha256("valid-token");
         verify(accessTokenRepository).findByTokenHash("valid-hash");

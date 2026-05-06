@@ -23,6 +23,10 @@ import java.util.regex.Pattern;
 public class AliceService {
     private static final List<Pattern> COMPLETE_TASK_PATTERNS = List.of(
             Pattern.compile(
+                    "^отмет\\p{L}*\\s+задач\\p{L}*\\s+выполнен\\p{L}*\\s+(.+)$",
+                    Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
+            ),
+            Pattern.compile(
                     "^отмет\\p{L}*\\s+выполнен\\p{L}*\\s+(?:задач\\p{L}*\\s+)?(.+)$",
                     Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
             ),
@@ -31,7 +35,11 @@ public class AliceService {
                     Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
             ),
             Pattern.compile(
-                    "^(?:задач\\p{L}*\\s+)?(.+?)\\s+отмет\\p{L}*\\s+выполнен\\p{L}*$",
+                    "^(?:задач\\p{L}*\\s+)?(.+?)\\s+отмет\\p{L}*(?:\\s+выполнен\\p{L}*)?$",
+                    Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
+            ),
+            Pattern.compile(
+                    "^отмет\\p{L}*\\s+(?:задач\\p{L}*\\s+)?(.+)$",
                     Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
             )
     );
@@ -57,7 +65,7 @@ public class AliceService {
             "Я не совсем поняла вопрос. Попробуйте спросить, какие у меня задачи на сегодня или на завтра, попросите отметить задачу выполненной, или спросите, что это за приложение.";
 
     private static final String COMPLETE_TASK_FORMAT_HINT =
-            "Чтобы отметить задачу выполненной, скажите, например: отметь выполненной задачу \"вынести мусор\".";
+            "Чтобы отметить задачу выполненной, скажите, например: отметь задачу \"вынести мусор\".";
 
     private final FeignClient feignClient;
     private final HashService hashService;
@@ -196,7 +204,7 @@ public class AliceService {
     }
 
     private boolean isCompleteTaskCommand(String command) {
-        return command.contains("отмет");
+        return containsAny(command, "отмет", "выполн");
     }
 
     private boolean isTodayCommand(String command) {
