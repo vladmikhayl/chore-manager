@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, type SyntheticEvent } from "react";
 import toast from "react-hot-toast";
 import { AuthLayout } from "../components/auth/AuthLayout";
@@ -10,6 +10,10 @@ import { parseApiError } from "../utils/parseApiError";
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const searchParams = new URLSearchParams(location.search);
+  const redirectPath = searchParams.get("redirect");
 
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -67,7 +71,13 @@ export function RegisterPage() {
       });
 
       toast.success("Аккаунт успешно создан");
-      navigate("/login", { replace: true });
+
+      navigate(
+        redirectPath
+          ? `/login?redirect=${encodeURIComponent(redirectPath)}`
+          : "/login",
+        { replace: true },
+      );
     } catch (error) {
       const parsedError = parseApiError(error);
       toast.error(parsedError.message);
@@ -150,7 +160,11 @@ export function RegisterPage() {
         <p className="mt-6 text-sm text-slate-600">
           Уже есть аккаунт?{" "}
           <Link
-            to="/login"
+            to={
+              redirectPath
+                ? `/login?redirect=${encodeURIComponent(redirectPath)}`
+                : "/login"
+            }
             className="font-medium text-indigo-600 transition hover:text-indigo-700"
           >
             Войти

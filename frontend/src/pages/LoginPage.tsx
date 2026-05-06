@@ -126,7 +126,11 @@ export function LoginPage() {
         <p className="mt-6 text-sm text-slate-600">
           Нет аккаунта?{" "}
           <Link
-            to="/register"
+            to={
+              redirectPath
+                ? `/register?redirect=${encodeURIComponent(redirectPath)}`
+                : "/register"
+            }
             className="font-medium text-indigo-600 transition hover:text-indigo-700"
           >
             Зарегистрироваться
