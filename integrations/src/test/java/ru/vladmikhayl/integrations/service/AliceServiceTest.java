@@ -2,6 +2,8 @@ package ru.vladmikhayl.integrations.service;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -192,6 +194,129 @@ public class AliceServiceTest {
         verify(feignClient).getTasksForDay(userId, "2026-04-21");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "отметь выполненной задачу вынести мусор",
+            "отметить выполненный задачу вынести мусор",
+            "отметьте выполненным вынести мусор",
+            "отметь задачу вынести мусор выполненный",
+            "отметить задача вынести мусор выполнена",
+            "отметьте вынести мусор выполненным",
+            "задачу вынести мусор отметь выполненной",
+            "задача вынести мусор отметить выполненную",
+            "вынести мусор отметьте выполненным"
+    })
+    void handleWebhook_completeTaskCommand_validPhrases_completesTask(String command) {
+        mockValidToken("valid-token", "valid-hash");
+
+        UUID taskId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+
+        AliceRequest request = buildRequest(command);
+
+        when(feignClient.getTasksForDay(userId, "2026-04-21"))
+                .thenReturn(List.of(
+                        TaskResponseShort.builder()
+                                .id(taskId)
+                                .title("Вынести мусор")
+                                .build()
+                ));
+
+        AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
+
+        assertThat(response.getStart_account_linking()).isNull();
+        assertThat(response.getResponse()).isNotNull();
+        assertThat(response.getResponse().getText())
+                .isEqualTo("Готово! Задача отмечена выполненной.");
+
+        verify(hashService).sha256("valid-token");
+        verify(accessTokenRepository).findByTokenHash("valid-hash");
+        verify(feignClient).getTasksForDay(userId, "2026-04-21");
+        verify(feignClient).completeTask(userId, taskId, "2026-04-21");
+    }
+
+    @Test
+    void handleWebhook_completeTaskCommand_invalidPhrase_returnsFormatHint() {
+        mockValidToken("valid-token", "valid-hash");
+
+        AliceRequest request = buildRequest("отметь вынести мусор");
+
+        AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
+
+        assertThat(response.getStart_account_linking()).isNull();
+        assertThat(response.getResponse()).isNotNull();
+        assertThat(response.getResponse().getText())
+                .isEqualTo("Чтобы отметить задачу выполненной, скажите, например: отметь выполненной задачу \"вынести мусор\".");
+
+        verify(hashService).sha256("valid-token");
+        verify(accessTokenRepository).findByTokenHash("valid-hash");
+        verifyNoInteractions(feignClient);
+    }
+
+    @Test
+    void handleWebhook_completeTaskCommand_taskNotFound_returnsMessage() {
+        mockValidToken("valid-token", "valid-hash");
+
+        AliceRequest request = buildRequest("отметь выполненной задачу вынести мусор");
+
+        when(feignClient.getTasksForDay(userId, "2026-04-21"))
+                .thenReturn(List.of(
+                        TaskResponseShort.builder()
+                                .id(UUID.fromString("33333333-3333-3333-3333-333333333333"))
+                                .title("Купить продукты")
+                                .build()
+                ));
+
+        AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
+
+        assertThat(response.getResponse()).isNotNull();
+        assertThat(response.getResponse().getText())
+                .isEqualTo("На сегодня у вас нет задачи \"вынести мусор\".");
+
+        verify(feignClient).getTasksForDay(userId, "2026-04-21");
+        verify(feignClient, never()).completeTask(any(), any(), anyString());
+    }
+
+    @Test
+    void handleWebhook_completeTaskCommand_multipleMatchingTasks_returnsAmbiguousMessage() {
+        mockValidToken("valid-token", "valid-hash");
+
+        AliceRequest request = buildRequest("отметь выполненной задачу вынести мусор");
+
+        when(feignClient.getTasksForDay(userId, "2026-04-21"))
+                .thenReturn(List.of(
+                        TaskResponseShort.builder()
+                                .id(UUID.fromString("44444444-4444-4444-4444-444444444444"))
+                                .title("Вынести мусор")
+                                .build(),
+                        TaskResponseShort.builder()
+                                .id(UUID.fromString("55555555-5555-5555-5555-555555555555"))
+                                .title("вынести мусор")
+                                .build()
+                ));
+
+        AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
+
+        assertThat(response.getResponse()).isNotNull();
+        assertThat(response.getResponse().getText())
+                .isEqualTo("На сегодня у вас есть несколько задач с названием \"вынести мусор\". К сожалению, пока я не могу отмечать задачи в таком случае.");
+
+        verify(feignClient).getTasksForDay(userId, "2026-04-21");
+        verify(feignClient, never()).completeTask(any(), any(), anyString());
+    }
+
+    @Test
+    void handleWebhook_completeTaskCommandWithoutToken_returnsStartAccountLinking() {
+        AliceRequest request = buildRequest("отметь выполненной задачу вынести мусор");
+
+        AliceResponse response = aliceService.handleWebhook(request, null);
+
+        assertThat(response.getResponse()).isNull();
+        assertThat(response.getStart_account_linking()).isEmpty();
+        assertThat(response.getVersion()).isEqualTo("1.0");
+
+        verifyNoInteractions(hashService, accessTokenRepository, feignClient);
+    }
+
     @Test
     void handleWebhook_startCommand_returnsReferenceHelpWithoutAuthorization() {
         AliceRequest request = buildRequest("привет");
@@ -298,5 +423,19 @@ public class AliceServiceTest {
         request.setVersion("1.0");
 
         return request;
+    }
+
+    private void mockValidToken(String rawToken, String tokenHash) {
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
+        when(clock.instant()).thenReturn(Instant.parse("2026-04-21T09:00:00Z"));
+
+        AliceOAuthAccessToken validToken = AliceOAuthAccessToken.builder()
+                .userId(userId)
+                .tokenHash(tokenHash)
+                .expiresAt(LocalDateTime.of(2026, 4, 21, 12, 0, 1))
+                .build();
+
+        when(hashService.sha256(rawToken)).thenReturn(tokenHash);
+        when(accessTokenRepository.findByTokenHash(tokenHash)).thenReturn(Optional.of(validToken));
     }
 }
