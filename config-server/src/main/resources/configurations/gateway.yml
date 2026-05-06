@@ -44,7 +44,7 @@ spring:
         - id: task-management-internal
           uri: lb://TASK-MANAGEMENT
           predicates:
-            - Path=/api/v1/internal/tasks-for-users,/api/v1/internal/tasks
+            - Path=/api/v1/internal/tasks-for-users,/api/v1/internal/tasks/**
           filters:
             - InternalToken
 
