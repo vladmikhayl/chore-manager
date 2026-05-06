@@ -243,7 +243,7 @@ public class AliceService {
             return "На сегодня у вас есть несколько задач с названием \"" + requestedTaskTitle + "\". К сожалению, пока я не могу отмечать задачи в таком случае.";
         }
 
-        TaskResponseShort task = matchedTasks.getFirst();
+        TaskResponseShort task = matchedTasks.get(0);
 
         feignClient.completeTask(userId, task.getId(), today.toString());
 
