@@ -32,6 +32,27 @@ public class AliceService {
                 ? request.getVersion()
                 : "1.0";
 
+        if (request != null && request.getAccount_linking_complete_event() != null) {
+            UUID userId = resolveUserId(request, authorizationHeader);
+
+            if (userId == null) {
+                return new AliceResponse(
+                        null,
+                        Map.of(),
+                        version
+                );
+            }
+
+            return new AliceResponse(
+                    new AliceResponse.Response(
+                            "Вы успешно авторизовались.",
+                            false
+                    ),
+                    null,
+                    version
+            );
+        }
+
         String command = extractCommand(request);
 
         if (isTodayCommand(command) || isTomorrowCommand(command)) {

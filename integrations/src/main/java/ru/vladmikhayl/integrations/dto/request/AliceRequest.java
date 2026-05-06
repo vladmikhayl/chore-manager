@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -15,6 +17,7 @@ public class AliceRequest {
     private Request request;
     private Session session;
     private String version;
+    private Map<String, Object> account_linking_complete_event;
 
     @Data
     public static class Request {
