@@ -4,12 +4,14 @@ import type { ReactNode } from "react";
 type AppNavLinkProps = {
   to: string;
   children: ReactNode;
+  onClick?: () => void;
 };
 
-export function AppNavLink({ to, children }: AppNavLinkProps) {
+export function AppNavLink({ to, children, onClick }: AppNavLinkProps) {
   return (
     <NavLink
       to={to}
+      onClick={onClick}
       className={({ isActive }) =>
         [
           "block rounded-xl px-4 py-2 text-center text-sm font-medium transition md:inline-block",
