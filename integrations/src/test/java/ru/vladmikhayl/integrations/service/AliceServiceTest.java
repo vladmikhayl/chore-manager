@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.vladmikhayl.integrations.dto.request.AliceRequest;
 import ru.vladmikhayl.integrations.dto.response.AliceResponse;
+import ru.vladmikhayl.integrations.dto.response.TaskCompletionStatusResponse;
 import ru.vladmikhayl.integrations.dto.response.TaskResponseShort;
 import ru.vladmikhayl.integrations.entity.AliceOAuthAccessToken;
 import ru.vladmikhayl.integrations.feign.FeignClient;
@@ -226,17 +227,61 @@ public class AliceServiceTest {
                                 .build()
                 ));
 
+        when(feignClient.getTaskCompletion(userId, taskId, "2026-04-21"))
+                .thenReturn(TaskCompletionStatusResponse.builder()
+                        .completed(false)
+                        .build());
+
         AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
 
         assertThat(response.getStart_account_linking()).isNull();
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
-                .isEqualTo("Готово! Задача отмечена выполненной.");
+                .isIn(
+                        "Готово! Задача отмечена выполненной.",
+                        "Отметила выполненной. Так держать!",
+                        "Отметила. Хорошая работа!",
+                        "Готово, отметила."
+                );
 
         verify(hashService).sha256("valid-token");
         verify(accessTokenRepository).findByTokenHash("valid-hash");
         verify(feignClient).getTasksForDay(userId, "2026-04-21");
         verify(feignClient).completeTask(userId, taskId, "2026-04-21");
+    }
+
+    @Test
+    void handleWebhook_completeTaskCommand_alreadyCompleted_returnsAlreadyCompletedMessage() {
+        mockValidToken("valid-token", "valid-hash");
+
+        UUID taskId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+
+        AliceRequest request = buildRequest("отметь выполненной задачу вынести мусор");
+
+        when(feignClient.getTasksForDay(userId, "2026-04-21"))
+                .thenReturn(List.of(
+                        TaskResponseShort.builder()
+                                .id(taskId)
+                                .title("Вынести мусор")
+                                .build()
+                ));
+
+        when(feignClient.getTaskCompletion(userId, taskId, "2026-04-21"))
+                .thenReturn(TaskCompletionStatusResponse.builder()
+                        .completed(true)
+                        .build());
+
+        AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
+
+        assertThat(response.getStart_account_linking()).isNull();
+        assertThat(response.getResponse()).isNotNull();
+        assertThat(response.getResponse().getText())
+                .isIn(
+                        "Кажется, эта задача уже отмечена выполненной.",
+                        "Уже отмечено — повторно ничего менять не пришлось."
+                );
+
+        verify(feignClient, never()).completeTask(any(), any(), anyString());
     }
 
     @Test
@@ -275,7 +320,11 @@ public class AliceServiceTest {
 
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
-                .isEqualTo("На сегодня у вас нет задачи \"вынести мусор\".");
+                .isIn(
+                        "Кажется, на сегодня у вас нет такой задачи.",
+                        "Не нашла такую задачу на сегодня.",
+                        "Похоже, сегодня такой задачи нет."
+                );
 
         verify(feignClient).getTasksForDay(userId, "2026-04-21");
         verify(feignClient, never()).completeTask(any(), any(), anyString());
@@ -303,7 +352,7 @@ public class AliceServiceTest {
 
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
-                .isEqualTo("На сегодня у вас есть несколько задач с названием \"вынести мусор\". К сожалению, пока я не могу отмечать задачи в таком случае.");
+                .isEqualTo("На сегодня нашлось несколько задач с таким названием. К сожалению, пока я не могу отмечать задачи в таком случае.");
 
         verify(feignClient).getTasksForDay(userId, "2026-04-21");
         verify(feignClient, never()).completeTask(any(), any(), anyString());

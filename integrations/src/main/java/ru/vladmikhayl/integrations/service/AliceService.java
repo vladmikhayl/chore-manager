@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.vladmikhayl.integrations.dto.request.AliceRequest;
 import ru.vladmikhayl.integrations.dto.response.AliceResponse;
+import ru.vladmikhayl.integrations.dto.response.TaskCompletionStatusResponse;
 import ru.vladmikhayl.integrations.dto.response.TaskResponseShort;
 import ru.vladmikhayl.integrations.entity.AliceOAuthAccessToken;
 import ru.vladmikhayl.integrations.feign.FeignClient;
@@ -74,6 +75,11 @@ public class AliceService {
             "Кажется, на сегодня у вас нет такой задачи.",
             "Не нашла такую задачу на сегодня.",
             "Похоже, сегодня такой задачи нет."
+    );
+
+    private static final List<String> TASK_ALREADY_COMPLETED_TEXTS = List.of(
+            "Кажется, эта задача уже отмечена выполненной.",
+            "Уже отмечено — повторно ничего менять не пришлось."
     );
 
     private static final List<String> COMPLETE_TASK_SUCCESS_TEXTS = List.of(
@@ -260,6 +266,13 @@ public class AliceService {
         }
 
         TaskResponseShort task = matchedTasks.get(0);
+
+        TaskCompletionStatusResponse completionStatus =
+                feignClient.getTaskCompletion(userId, task.getId(), today.toString());
+
+        if (completionStatus.isCompleted()) {
+            return randomText(TASK_ALREADY_COMPLETED_TEXTS);
+        }
 
         feignClient.completeTask(userId, task.getId(), today.toString());
 

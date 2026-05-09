@@ -6,6 +6,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.vladmikhayl.task_management.dto.request.TasksForUsersRequest;
+import ru.vladmikhayl.task_management.dto.response.TaskCompletionStatusResponse;
 import ru.vladmikhayl.task_management.dto.response.TaskResponseShort;
 import ru.vladmikhayl.task_management.dto.response.UserTasksForReminderResponse;
 import ru.vladmikhayl.task_management.service.InternalTaskManagementService;
@@ -60,5 +61,14 @@ public class InternalTaskManagementController {
     ) {
         taskManagementService.completeTask(userId, taskId, date);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/tasks/{taskId}/completions/{date}")
+    public ResponseEntity<TaskCompletionStatusResponse> getTaskCompletion(
+            @RequestHeader("X-User-Id") UUID userId,
+            @PathVariable UUID taskId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return ResponseEntity.ok(taskManagementService.getTaskCompletion(userId, taskId, date));
     }
 }
