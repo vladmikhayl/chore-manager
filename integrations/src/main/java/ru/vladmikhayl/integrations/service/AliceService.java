@@ -62,10 +62,26 @@ public class AliceService {
             "Приложение отправляет напоминания через Телеграм. Пользователь получает список задач на день в 8 утра каждый день.";
 
     private static final String UNKNOWN_COMMAND_TEXT =
-            "Я не совсем поняла вопрос. Попробуйте спросить, какие у меня задачи на сегодня или на завтра, попросите отметить задачу выполненной, или спросите, что это за приложение.";
+            "Я не совсем поняла вопрос. Попробуйте спросить, какие у меня задачи на сегодня или на завтра, попросите отметить задачу выполненной, или спросите, что делает приложение.";
 
-    private static final String COMPLETE_TASK_FORMAT_HINT =
+    private static final String COMPLETE_TASK_FORMAT_TEXT =
             "Чтобы отметить задачу выполненной, скажите, например: отметь задачу \"вынести мусор\".";
+
+    private static final String DUPLICATE_TASKS_TEXT =
+            "На сегодня нашлось несколько задач с таким названием. К сожалению, пока я не могу отмечать задачи в таком случае.";
+
+    private static final List<String> TASK_NOT_FOUND_TODAY_TEXTS = List.of(
+            "Кажется, на сегодня у вас нет такой задачи.",
+            "Не нашла такую задачу на сегодня.",
+            "Похоже, сегодня такой задачи нет."
+    );
+
+    private static final List<String> COMPLETE_TASK_SUCCESS_TEXTS = List.of(
+            "Готово! Задача отмечена выполненной.",
+            "Отметила выполненной. Так держать!",
+            "Отметила. Хорошая работа!",
+            "Готово, отметила."
+    );
 
     private final FeignClient feignClient;
     private final HashService hashService;
@@ -219,7 +235,7 @@ public class AliceService {
         Optional<String> requestedTaskTitleOptional = extractTaskTitleToComplete(command);
 
         if (requestedTaskTitleOptional.isEmpty()) {
-            return COMPLETE_TASK_FORMAT_HINT;
+            return COMPLETE_TASK_FORMAT_TEXT;
         }
 
         String requestedTaskTitle = requestedTaskTitleOptional.get();
@@ -236,18 +252,18 @@ public class AliceService {
                 .toList();
 
         if (matchedTasks.isEmpty()) {
-            return "На сегодня у вас нет задачи \"" + requestedTaskTitle + "\".";
+            return randomText(TASK_NOT_FOUND_TODAY_TEXTS);
         }
 
         if (matchedTasks.size() > 1) {
-            return "На сегодня у вас есть несколько задач с названием \"" + requestedTaskTitle + "\". К сожалению, пока я не могу отмечать задачи в таком случае.";
+            return DUPLICATE_TASKS_TEXT;
         }
 
         TaskResponseShort task = matchedTasks.get(0);
 
         feignClient.completeTask(userId, task.getId(), today.toString());
 
-        return "Готово! Задача отмечена выполненной.";
+        return randomText(COMPLETE_TASK_SUCCESS_TEXTS);
     }
 
     private Optional<String> extractTaskTitleToComplete(String command) {
@@ -354,5 +370,9 @@ public class AliceService {
         }
 
         return false;
+    }
+
+    private String randomText(List<String> texts) {
+        return texts.get(new Random().nextInt(texts.size()));
     }
 }
