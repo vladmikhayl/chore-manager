@@ -15,4 +15,5 @@ public class ReminderTaskResponse {
     private UUID taskId;
     private String title;
     private String listTitle;
+    private boolean completed;
 }

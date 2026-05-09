@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -59,12 +60,15 @@ public class InternalTaskManagementServiceTest {
         assertThat(userResult.getTasks()).hasSize(2);
 
         assertThat(userResult.getTasks())
-                .extracting(ReminderTaskResponse::getTitle)
-                .containsExactly("Task 1", "Task 2");
+                .extracting(ReminderTaskResponse::getTitle, ReminderTaskResponse::isCompleted)
+                .containsExactly(
+                        tuple("Task 1", false),
+                        tuple("Task 2", false)
+                );
     }
 
     @Test
-    void getTasksForUsers_completedTasks_filteredOut() {
+    void getTasksForUsers_completedTasks_returnsWithCompletedFlag() {
         UUID userId = UUID.randomUUID();
         LocalDate date = LocalDate.now();
 
@@ -92,8 +96,14 @@ public class InternalTaskManagementServiceTest {
 
         var tasks = result.get(0).getTasks();
 
-        assertThat(tasks).hasSize(1);
-        assertThat(tasks.get(0).getTitle()).isEqualTo("Active task");
+        assertThat(tasks).hasSize(2);
+
+        assertThat(tasks)
+                .extracting(ReminderTaskResponse::getTitle, ReminderTaskResponse::isCompleted)
+                .containsExactly(
+                        tuple("Done task", true),
+                        tuple("Active task", false)
+                );
     }
 
     @Test

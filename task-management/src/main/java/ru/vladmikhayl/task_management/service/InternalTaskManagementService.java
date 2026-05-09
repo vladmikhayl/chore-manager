@@ -27,11 +27,11 @@ public class InternalTaskManagementService {
                     var tasks = taskManagementService.getTasksForDay(userId, date);
 
                     var mapped = tasks.stream()
-                            .filter(task -> !Boolean.TRUE.equals(task.isCompleted()))
                             .map(task -> ReminderTaskResponse.builder()
                                     .taskId(task.getId())
                                     .title(task.getTitle())
                                     .listTitle(task.getListTitle())
+                                    .completed(task.isCompleted())
                                     .build()
                             )
                             .toList();

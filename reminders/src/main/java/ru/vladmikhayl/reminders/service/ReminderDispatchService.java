@@ -98,8 +98,13 @@ public class ReminderDispatchService {
                     .append(task.getTitle())
                     .append("</b>")
                     .append(" — ")
-                    .append(task.getListTitle())
-                    .append("\n");
+                    .append(task.getListTitle());
+
+            if (task.isCompleted()) {
+                sb.append(" <i>(выполнено)</i>");
+            }
+
+            sb.append("\n");
         }
 
         return sb.toString();
