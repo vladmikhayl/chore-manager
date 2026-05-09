@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.vladmikhayl.integrations.dto.request.AliceRequest;
 import ru.vladmikhayl.integrations.dto.response.AliceResponse;
-import ru.vladmikhayl.integrations.dto.response.TaskCompletionStatusResponse;
 import ru.vladmikhayl.integrations.dto.response.TaskResponseShort;
 import ru.vladmikhayl.integrations.entity.AliceOAuthAccessToken;
 import ru.vladmikhayl.integrations.feign.FeignClient;
@@ -264,10 +263,7 @@ public class AliceService {
 
         TaskResponseShort task = matchedTasks.get(0);
 
-        TaskCompletionStatusResponse completionStatus =
-                feignClient.getTaskCompletion(userId, task.getId(), today.toString());
-
-        if (completionStatus.isCompleted()) {
+        if (task.isCompleted()) {
             return randomText(TASK_ALREADY_COMPLETED_TEXTS);
         }
 

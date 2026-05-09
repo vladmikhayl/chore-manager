@@ -47,6 +47,7 @@ public class InternalTaskManagementController {
                         .id(task.getId())
                         .listTitle(task.getListTitle())
                         .title(task.getTitle())
+                        .completed(task.isCompleted())
                         .build())
                 .toList();
 
@@ -61,14 +62,5 @@ public class InternalTaskManagementController {
     ) {
         taskManagementService.completeTask(userId, taskId, date);
         return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/tasks/{taskId}/completions/{date}")
-    public ResponseEntity<TaskCompletionStatusResponse> getTaskCompletion(
-            @RequestHeader("X-User-Id") UUID userId,
-            @PathVariable UUID taskId,
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
-    ) {
-        return ResponseEntity.ok(taskManagementService.getTaskCompletion(userId, taskId, date));
     }
 }

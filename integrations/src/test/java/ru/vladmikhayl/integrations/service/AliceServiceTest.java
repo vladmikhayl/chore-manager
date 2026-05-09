@@ -9,7 +9,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.vladmikhayl.integrations.dto.request.AliceRequest;
 import ru.vladmikhayl.integrations.dto.response.AliceResponse;
-import ru.vladmikhayl.integrations.dto.response.TaskCompletionStatusResponse;
 import ru.vladmikhayl.integrations.dto.response.TaskResponseShort;
 import ru.vladmikhayl.integrations.entity.AliceOAuthAccessToken;
 import ru.vladmikhayl.integrations.feign.FeignClient;
@@ -203,13 +202,9 @@ public class AliceServiceTest {
                         TaskResponseShort.builder()
                                 .id(taskId)
                                 .title("Вынести мусор")
+                                .completed(false)
                                 .build()
                 ));
-
-        when(feignClient.getTaskCompletion(userId, taskId, "2026-04-21"))
-                .thenReturn(TaskCompletionStatusResponse.builder()
-                        .completed(false)
-                        .build());
 
         AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
 
@@ -242,13 +237,9 @@ public class AliceServiceTest {
                         TaskResponseShort.builder()
                                 .id(taskId)
                                 .title("Вынести мусор")
+                                .completed(true)
                                 .build()
                 ));
-
-        when(feignClient.getTaskCompletion(userId, taskId, "2026-04-21"))
-                .thenReturn(TaskCompletionStatusResponse.builder()
-                        .completed(true)
-                        .build());
 
         AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
 

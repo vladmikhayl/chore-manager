@@ -22,4 +22,7 @@ public class TaskResponseShort {
 
     @Schema(description = "Название задачи", example = "Вынести мусор")
     private String title;
+
+    @Schema(description = "Выполнена ли задача за указанную дату")
+    private boolean completed;
 }
