@@ -129,16 +129,16 @@ public class AliceService {
             );
         }
 
-        if (isTodayCommand(command) || isTomorrowCommand(command)) {
+        if (isTasksCommand(command)) {
             UUID userId = resolveUserId(request, authorizationHeader);
 
             if (userId == null) {
                 return buildStartAccountLinkingResponse(version);
             }
 
-            LocalDate date = isTodayCommand(command)
-                    ? LocalDate.now(clock)
-                    : LocalDate.now(clock).plusDays(1);
+            LocalDate date = command.contains("завтра")
+                    ? LocalDate.now(clock).plusDays(1)
+                    : LocalDate.now(clock);
 
             return new AliceResponse(
                     new AliceResponse.Response(buildTasksMessage(userId, date), false),
@@ -229,12 +229,9 @@ public class AliceService {
         return containsAny(command, "отмет", "выполн");
     }
 
-    private boolean isTodayCommand(String command) {
-        return command.contains("сегодня") && command.contains("задач");
-    }
-
-    private boolean isTomorrowCommand(String command) {
-        return command.contains("завтра") && command.contains("задач");
+    private boolean isTasksCommand(String command) {
+        return command.contains("задач")
+                && containsAny(command, "какие", "какая", "покаж", "есть", "список", "меня", "мои", "сегодня", "завтра");
     }
 
     private String completeTask(UUID userId, String command) {

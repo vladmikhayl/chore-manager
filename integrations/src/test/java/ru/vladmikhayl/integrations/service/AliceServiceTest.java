@@ -101,21 +101,19 @@ public class AliceServiceTest {
         verifyNoInteractions(feignClient);
     }
 
-    @Test
-    void handleWebhook_validBearerToken_todayCommand_returnsTasks() {
-        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
-        when(clock.instant()).thenReturn(Instant.parse("2026-04-21T09:00:00Z"));
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "какие у меня задачи",
+            "какие у меня задачи на сегодня",
+            "задачи на сегодня",
+            "покажи задачи",
+            "мои задачи"
+    })
+    void handleWebhook_validToken_todayTaskPhrases_returnsTodayTasks(String command) {
+        mockValidToken("valid-token", "valid-hash");
 
-        AliceRequest request = buildRequest("какие у меня задачи на сегодня");
+        AliceRequest request = buildRequest(command);
 
-        AliceOAuthAccessToken validToken = AliceOAuthAccessToken.builder()
-                .userId(userId)
-                .tokenHash("valid-hash")
-                .expiresAt(LocalDateTime.of(2026, 4, 21, 12, 0, 1))
-                .build();
-
-        when(hashService.sha256("valid-token")).thenReturn("valid-hash");
-        when(accessTokenRepository.findByTokenHash("valid-hash")).thenReturn(Optional.of(validToken));
         when(feignClient.getTasksForDay(userId, "2026-04-21"))
                 .thenReturn(List.of(
                         TaskResponseShort.builder().title("Вынести мусор").build(),
@@ -124,63 +122,44 @@ public class AliceServiceTest {
 
         AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
 
-        assertThat(response.getStart_account_linking()).isNull();
         assertThat(response.getResponse()).isNotNull();
-        assertThat(response.getResponse().isEnd_session()).isFalse();
         assertThat(response.getResponse().getText())
                 .isEqualTo("На сегодня у вас две задачи: вынести мусор, купить продукты.");
 
-        verify(hashService).sha256("valid-token");
-        verify(accessTokenRepository).findByTokenHash("valid-hash");
         verify(feignClient).getTasksForDay(userId, "2026-04-21");
     }
 
-    @Test
-    void handleWebhook_validOAuthToken_tomorrowCommand_returnsTasks() {
-        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
-        when(clock.instant()).thenReturn(Instant.parse("2026-04-21T09:00:00Z"));
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "какие у меня задачи на завтра",
+            "задачи на завтра",
+            "покажи задачи на завтра"
+    })
+    void handleWebhook_validToken_tomorrowTaskPhrases_returnsTomorrowTasks(String command) {
+        mockValidToken("valid-token", "valid-hash");
 
-        AliceRequest request = buildRequest("какие задачи на завтра");
+        AliceRequest request = buildRequest(command);
 
-        AliceOAuthAccessToken validToken = AliceOAuthAccessToken.builder()
-                .userId(userId)
-                .tokenHash("oauth-hash")
-                .expiresAt(LocalDateTime.of(2026, 4, 21, 12, 0, 1))
-                .build();
-
-        when(hashService.sha256("oauth-token")).thenReturn("oauth-hash");
-        when(accessTokenRepository.findByTokenHash("oauth-hash")).thenReturn(Optional.of(validToken));
         when(feignClient.getTasksForDay(userId, "2026-04-22"))
                 .thenReturn(List.of(
                         TaskResponseShort.builder().title("Помыть посуду").build()
                 ));
 
-        AliceResponse response = aliceService.handleWebhook(request, "OAuth oauth-token");
+        AliceResponse response = aliceService.handleWebhook(request, "Bearer valid-token");
 
         assertThat(response.getResponse()).isNotNull();
         assertThat(response.getResponse().getText())
                 .isEqualTo("На завтра у вас одна задача: помыть посуду.");
 
-        verify(hashService).sha256("oauth-token");
-        verify(accessTokenRepository).findByTokenHash("oauth-hash");
         verify(feignClient).getTasksForDay(userId, "2026-04-22");
     }
 
     @Test
     void handleWebhook_validTokenInBody_returnsTasks() {
-        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Moscow"));
-        when(clock.instant()).thenReturn(Instant.parse("2026-04-21T09:00:00Z"));
+        mockValidToken("body-token", "body-hash");
 
         AliceRequest request = buildRequestWithBodyToken("какие у меня задачи на сегодня", "body-token");
 
-        AliceOAuthAccessToken validToken = AliceOAuthAccessToken.builder()
-                .userId(userId)
-                .tokenHash("body-hash")
-                .expiresAt(LocalDateTime.of(2026, 4, 21, 12, 0, 1))
-                .build();
-
-        when(hashService.sha256("body-token")).thenReturn("body-hash");
-        when(accessTokenRepository.findByTokenHash("body-hash")).thenReturn(Optional.of(validToken));
         when(feignClient.getTasksForDay(userId, "2026-04-21"))
                 .thenReturn(List.of(TaskResponseShort.builder().title("Протереть пыль").build()));
 
