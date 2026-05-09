@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -301,34 +302,73 @@ public class AliceService {
     private String buildTasksMessage(UUID userId, LocalDate date) {
         List<TaskResponseShort> tasks = feignClient.getTasksForDay(userId, date.toString());
 
+        boolean isToday = date.equals(LocalDate.now(clock));
+        String dayText = isToday ? "На сегодня" : "На завтра";
+
         if (tasks == null || tasks.isEmpty()) {
-            return date.equals(LocalDate.now(clock))
-                    ? "На сегодня у вас нет задач."
-                    : "На завтра у вас нет задач.";
+            return dayText + " у вас нет задач.";
         }
 
-        StringBuilder sb = new StringBuilder();
+        List<TaskResponseShort> activeTasks = tasks.stream()
+                .filter(task -> !task.isCompleted())
+                .toList();
 
-        if (date.equals(LocalDate.now(clock))) {
-            sb.append("На сегодня у вас ");
-        } else {
-            sb.append("На завтра у вас ");
+        List<TaskResponseShort> completedTasks = tasks.stream()
+                .filter(TaskResponseShort::isCompleted)
+                .toList();
+
+        if (completedTasks.isEmpty()) {
+            return buildNoCompletedTasksText(dayText, activeTasks);
         }
 
-        sb.append(getTaskCountText(tasks.size())).append(": ");
-
-        for (int i = 0; i < tasks.size(); i++) {
-            TaskResponseShort task = tasks.get(i);
-            sb.append(task.getTitle().toLowerCase(Locale.ROOT));
-
-            if (i < tasks.size() - 1) {
-                sb.append(", ");
-            }
+        if (activeTasks.isEmpty()) {
+            return buildAllCompletedTasksText(dayText, completedTasks);
         }
 
-        sb.append(".");
+        return buildPartiallyCompletedTasksText(dayText, activeTasks, completedTasks);
+    }
 
-        return sb.toString();
+    private String buildNoCompletedTasksText(String dayText, List<TaskResponseShort> activeTasks) {
+        return dayText + " у вас " + getTaskCountText(activeTasks.size()) + ": "
+                + joinTaskTitles(activeTasks) + ".";
+    }
+
+    private String buildAllCompletedTasksText(String dayText, List<TaskResponseShort> completedTasks) {
+        return dayText
+                + " все задачи уже выполнены. У вас "
+                + (completedTasks.size() == 1 ? "была " : "было ")
+                + getTaskCountText(completedTasks.size())
+                + ": "
+                + joinTaskTitles(completedTasks)
+                + ".";
+    }
+
+    private String buildPartiallyCompletedTasksText(
+            String dayText,
+            List<TaskResponseShort> activeTasks,
+            List<TaskResponseShort> completedTasks
+    ) {
+        return dayText
+                + getRemainingTaskText(activeTasks)
+                + ": "
+                + joinTaskTitles(activeTasks)
+                + ". "
+                + getAlreadyCompletedText(completedTasks);
+    }
+
+    private String getRemainingTaskText(List<TaskResponseShort> activeTasks) {
+        return activeTasks.size() == 1
+                ? " осталась " + getTaskCountText(activeTasks.size())
+                : " осталось " + getTaskCountText(activeTasks.size());
+    }
+
+    private String getAlreadyCompletedText(List<TaskResponseShort> completedTasks) {
+        return "Ещё "
+                + getTaskCountText(completedTasks.size())
+                + " уже "
+                + (completedTasks.size() == 1 ? "выполнена: " : "выполнены: ")
+                + joinTaskTitles(completedTasks)
+                + ".";
     }
 
     private String getTaskCountText(int count) {
@@ -338,6 +378,12 @@ public class AliceService {
             case 3 -> "три задачи";
             default -> "несколько задач";
         };
+    }
+
+    private String joinTaskTitles(List<TaskResponseShort> tasks) {
+        return tasks.stream()
+                .map(task -> task.getTitle().toLowerCase(Locale.ROOT))
+                .collect(Collectors.joining(", "));
     }
 
     private String buildReferenceAnswer(String command) {
