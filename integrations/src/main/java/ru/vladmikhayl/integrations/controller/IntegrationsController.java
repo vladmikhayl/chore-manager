@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.vladmikhayl.integrations.dto.request.AliceRequest;
@@ -28,12 +30,22 @@ public class IntegrationsController {
     private final TelegramService telegramService;
     private final AliceService aliceService;
 
+    @Value("${telegram.webhook-secret}")
+    private String telegramWebhookSecret;
+
     @PostMapping("/telegram/webhook")
     @Operation(summary = "Обработать вебхук от Telegram")
     public ResponseEntity<Void> handleWebhook(
+            @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", required = false) String secretToken,
             @RequestBody TelegramWebhookRequest request
     ) {
         log.info("Called /telegram/webhook");
+
+        if (!telegramWebhookSecret.equals(secretToken)) {
+            log.warn("Rejected /telegram/webhook request: invalid secret token");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
         telegramService.handleWebhook(request);
         return ResponseEntity.ok().build();
     }
