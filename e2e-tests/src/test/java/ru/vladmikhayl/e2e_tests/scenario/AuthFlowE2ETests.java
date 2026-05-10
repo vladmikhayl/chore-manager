@@ -1,10 +1,10 @@
 package ru.vladmikhayl.e2e_tests.scenario;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.HttpClientErrorException;
 import ru.vladmikhayl.e2e_tests.BaseE2ETest;
 import ru.vladmikhayl.e2e_tests.dto.response.LoginResponse;
 import ru.vladmikhayl.e2e_tests.dto.response.ProfileResponse;
-import org.springframework.web.client.HttpClientErrorException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

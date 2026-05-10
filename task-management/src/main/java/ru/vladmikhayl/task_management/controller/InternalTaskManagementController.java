@@ -6,7 +6,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.vladmikhayl.task_management.dto.request.TasksForUsersRequest;
-import ru.vladmikhayl.task_management.dto.response.TaskCompletionStatusResponse;
 import ru.vladmikhayl.task_management.dto.response.TaskResponseShort;
 import ru.vladmikhayl.task_management.dto.response.UserTasksForReminderResponse;
 import ru.vladmikhayl.task_management.service.InternalTaskManagementService;
